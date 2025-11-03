@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A FastAPI application with TortoiseORM backend"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = [0
+dependencies = [
     "fastapi[standard]>=0.104.0",
     "uvicorn[standard]>=0.24.0",
     "tortoise-orm>=0.20.0",
@@ -13,9 +13,10 @@ dependencies = [0
     "yfinance>=0.2.37",
     "numpy>=1.26.4",
     "pandas>=2.2.1",
+    "matplotlib>=3.8.3",
 ]
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",

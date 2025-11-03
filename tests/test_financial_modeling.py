@@ -109,3 +109,43 @@ async def test_financial_modeling_endpoint_no_data(sample_dates, mock_get_histor
     )
     assert response.status_code == 404
     assert "No historical data found" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_portfolio_analysis_endpoint_success(mock_get_historical_data):
+    # 1. Create a portfolio
+    portfolio_response = client.post(
+        "/api/v1/portfolios",
+        json={"name": "Test Portfolio for Analysis", "description": "A portfolio for testing the analysis endpoint."}
+    )
+    assert portfolio_response.status_code == 201
+    portfolio_id = portfolio_response.json()["id"]
+
+    # 2. Add assets to the portfolio
+    assets_to_create = [
+        {"symbol": "AAPL", "name": "Apple Inc.", "quantity": 10, "portfolio_id": portfolio_id},
+        {"symbol": "MSFT", "name": "Microsoft Corp.", "quantity": 5, "portfolio_id": portfolio_id},
+    ]
+    for asset_data in assets_to_create:
+        asset_response = client.post("/api/v1/assets", json=asset_data)
+        assert asset_response.status_code == 201
+
+    # 3. Call the analysis endpoint
+    analysis_response = client.post(
+        f"/api/v1/portfolios/{portfolio_id}/analysis",
+        json={"risk_free_rate": 0.01}
+    )
+
+    # 4. Assert the response
+    assert analysis_response.status_code == 200
+    data = analysis_response.json()
+    assert "sharpe_ratio" in data
+    assert "tangency_portfolio_weights" in data
+    assert "markowitz_bullet_plot" in data
+    assert isinstance(data["sharpe_ratio"], float)
+    assert isinstance(data["tangency_portfolio_weights"], dict)
+    assert isinstance(data["markowitz_bullet_plot"], str)
+
+    # Clean up the created portfolio and assets
+    delete_portfolio_response = client.delete(f"/api/v1/portfolios/{portfolio_id}")
+    assert delete_portfolio_response.status_code == 204
