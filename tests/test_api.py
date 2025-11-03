@@ -1,7 +1,6 @@
 """Tests for the API endpoints."""
 
 
-
 class TestRootEndpoints:
     """Test root endpoints."""
 
