@@ -7,15 +7,41 @@ from tortoise.exceptions import DoesNotExist
 from app.models import Portfolio, Asset
 from app.services import risk_assessment_service
 from app.schemas.risk_profile import RiskProfile, RiskProfileCreate
+from app.schemas.financial_modeling import FinancialModelingRequest, FinancialModelingResponse
+from app.services.financial_modeling_service import FinancialModelingService
 from app import schemas
 
 router = APIRouter()
+
+financial_modeling_service = FinancialModelingService()
 
 
 @router.post("/risk-profiles/", response_model=RiskProfile, status_code=status.HTTP_201_CREATED)
 async def create_risk_profile_route(risk_profile: RiskProfileCreate):
     """Create a new risk profile."""
     return await risk_assessment_service.create_risk_profile(risk_profile)
+
+
+@router.post("/financial-modeling/", response_model=FinancialModelingResponse, status_code=status.HTTP_200_OK)
+async def get_financial_metrics(request: FinancialModelingRequest):
+    """Calculate expected returns and covariance matrix for given tickers and date range."""
+    historical_data = financial_modeling_service.get_historical_data(
+        request.tickers, str(request.start_date), str(request.end_date)
+    )
+    if historical_data.empty:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No historical data found for the given tickers and date range."
+        )
+
+    daily_returns = financial_modeling_service.calculate_returns(historical_data)
+    expected_returns = financial_modeling_service.calculate_expected_returns(daily_returns)
+    covariance_matrix = financial_modeling_service.calculate_covariance_matrix(daily_returns)
+
+    return FinancialModelingResponse(
+        expected_returns=expected_returns.to_dict(),
+        covariance_matrix=covariance_matrix.to_dict()
+    )
 
 
 # Portfolio endpoints

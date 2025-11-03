@@ -4,12 +4,15 @@ version = "0.1.0"
 description = "A FastAPI application with TortoiseORM backend"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = [
+dependencies = [0
     "fastapi[standard]>=0.104.0",
     "uvicorn[standard]>=0.24.0",
     "tortoise-orm>=0.20.0",
     "aiosqlite>=0.19.0",
     "pydantic>=2.0.0",
+    "yfinance>=0.2.37",
+    "numpy>=1.26.4",
+    "pandas>=2.2.1",
 ]
 
 [dependency-groups]
@@ -23,6 +26,9 @@ dev = [
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app"]
 
 [tool.ruff]
 line-length = 100
