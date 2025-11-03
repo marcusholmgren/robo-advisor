@@ -4,10 +4,17 @@ from typing import List
 from fastapi import APIRouter, HTTPException, status
 from tortoise.exceptions import DoesNotExist
 
-from app import schemas
 from app.models import Portfolio, Asset
+from app.services import risk_assessment_service
+from app.schemas.risk_profile import RiskProfile, RiskProfileCreate
+from app import schemas
 
 router = APIRouter()
+
+@router.post("/risk-profiles/", response_model=RiskProfile, status_code=status.HTTP_201_CREATED)
+async def create_risk_profile_route(risk_profile: RiskProfileCreate):
+    """Create a new risk profile."""
+    return await risk_assessment_service.create_risk_profile(risk_profile)
 
 
 # Portfolio endpoints
