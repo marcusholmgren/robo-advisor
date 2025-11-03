@@ -11,6 +11,7 @@ from app import schemas
 
 router = APIRouter()
 
+
 @router.post("/risk-profiles/", response_model=RiskProfile, status_code=status.HTTP_201_CREATED)
 async def create_risk_profile_route(risk_profile: RiskProfileCreate):
     """Create a new risk profile."""
@@ -34,7 +35,7 @@ async def get_portfolio(portfolio_id: int):
     except DoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Portfolio with id {portfolio_id} not found"
+            detail=f"Portfolio with id {portfolio_id} not found",
         )
 
 
@@ -56,7 +57,7 @@ async def update_portfolio(portfolio_id: int, portfolio: schemas.PortfolioUpdate
     except DoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Portfolio with id {portfolio_id} not found"
+            detail=f"Portfolio with id {portfolio_id} not found",
         )
 
 
@@ -69,7 +70,7 @@ async def delete_portfolio(portfolio_id: int):
     except DoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Portfolio with id {portfolio_id} not found"
+            detail=f"Portfolio with id {portfolio_id} not found",
         )
 
 
@@ -92,8 +93,7 @@ async def get_asset(asset_id: int):
         return asset
     except DoesNotExist:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Asset with id {asset_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Asset with id {asset_id} not found"
         )
 
 
@@ -106,9 +106,9 @@ async def create_asset(asset: schemas.AssetCreate):
     except DoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Portfolio with id {asset.portfolio_id} not found"
+            detail=f"Portfolio with id {asset.portfolio_id} not found",
         )
-    
+
     asset_data = asset.model_dump()
     asset_obj = await Asset.create(**asset_data)
     return asset_obj
@@ -124,8 +124,7 @@ async def update_asset(asset_id: int, asset: schemas.AssetUpdate):
         return asset_obj
     except DoesNotExist:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Asset with id {asset_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Asset with id {asset_id} not found"
         )
 
 
@@ -137,6 +136,5 @@ async def delete_asset(asset_id: int):
         await asset.delete()
     except DoesNotExist:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Asset with id {asset_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Asset with id {asset_id} not found"
         )

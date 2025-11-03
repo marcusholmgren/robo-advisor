@@ -1,11 +1,8 @@
 """Database configuration for TortoiseORM."""
 
-
 # TortoiseORM configuration
 TORTOISE_ORM = {
-    "connections": {
-        "default": "sqlite://db.sqlite3"
-    },
+    "connections": {"default": "sqlite://portfolio-db.sqlite3"},
     "apps": {
         "models": {
             "models": ["app.models"],

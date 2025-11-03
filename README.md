@@ -29,11 +29,7 @@ A Python FastAPI application with TortoiseORM backend that stores data in a SQLi
 ## Installation
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# For development
-pip install -r requirements-dev.txt
+uv sync
 ```
 
 ## Running the Application
@@ -42,8 +38,8 @@ pip install -r requirements-dev.txt
 # Method 1: Using the run script
 python run.py
 
-# Method 2: Using uvicorn directly
-uvicorn app.main:app --reload
+# Method 2: Using FastAPI CLI
+uv run fastapi dev
 
 # The API will be available at http://localhost:8000
 # Interactive API docs at http://localhost:8000/docs
@@ -54,13 +50,10 @@ uvicorn app.main:app --reload
 
 ```bash
 # Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=app tests/
+uv run pytest
 
 # Run specific test file
-pytest tests/test_api.py -v
+uv run pytest tests/test_api.py -v
 ```
 
 ## Example Usage

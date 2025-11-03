@@ -24,10 +24,7 @@ class TestPortfolioEndpoints:
 
     async def test_create_portfolio(self, client):
         """Test creating a portfolio."""
-        portfolio_data = {
-            "name": "My Portfolio",
-            "description": "A test portfolio"
-        }
+        portfolio_data = {"name": "My Portfolio", "description": "A test portfolio"}
         response = await client.post("/api/v1/portfolios", json=portfolio_data)
         assert response.status_code == 201
         data = response.json()
@@ -51,10 +48,7 @@ class TestPortfolioEndpoints:
     async def test_get_portfolio(self, client):
         """Test getting a specific portfolio."""
         # Create a portfolio
-        create_response = await client.post(
-            "/api/v1/portfolios",
-            json={"name": "Test Portfolio"}
-        )
+        create_response = await client.post("/api/v1/portfolios", json={"name": "Test Portfolio"})
         portfolio_id = create_response.json()["id"]
 
         # Get the portfolio
@@ -71,18 +65,12 @@ class TestPortfolioEndpoints:
     async def test_update_portfolio(self, client):
         """Test updating a portfolio."""
         # Create a portfolio
-        create_response = await client.post(
-            "/api/v1/portfolios",
-            json={"name": "Original Name"}
-        )
+        create_response = await client.post("/api/v1/portfolios", json={"name": "Original Name"})
         portfolio_id = create_response.json()["id"]
 
         # Update the portfolio
         update_data = {"name": "Updated Name", "description": "New description"}
-        response = await client.put(
-            f"/api/v1/portfolios/{portfolio_id}",
-            json=update_data
-        )
+        response = await client.put(f"/api/v1/portfolios/{portfolio_id}", json=update_data)
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "Updated Name"
@@ -91,10 +79,7 @@ class TestPortfolioEndpoints:
     async def test_delete_portfolio(self, client):
         """Test deleting a portfolio."""
         # Create a portfolio
-        create_response = await client.post(
-            "/api/v1/portfolios",
-            json={"name": "To Delete"}
-        )
+        create_response = await client.post("/api/v1/portfolios", json={"name": "To Delete"})
         portfolio_id = create_response.json()["id"]
 
         # Delete the portfolio
@@ -113,8 +98,7 @@ class TestAssetEndpoints:
         """Test creating an asset."""
         # First create a portfolio
         portfolio_response = await client.post(
-            "/api/v1/portfolios",
-            json={"name": "Test Portfolio"}
+            "/api/v1/portfolios", json={"name": "Test Portfolio"}
         )
         portfolio_id = portfolio_response.json()["id"]
 
@@ -124,7 +108,7 @@ class TestAssetEndpoints:
             "symbol": "AAPL",
             "name": "Apple Inc.",
             "quantity": "10.5",
-            "purchase_price": "150.25"
+            "purchase_price": "150.25",
         }
         response = await client.post("/api/v1/assets", json=asset_data)
         assert response.status_code == 201
@@ -140,7 +124,7 @@ class TestAssetEndpoints:
             "portfolio_id": 999,
             "symbol": "AAPL",
             "name": "Apple Inc.",
-            "quantity": "10.5"
+            "quantity": "10.5",
         }
         response = await client.post("/api/v1/assets", json=asset_data)
         assert response.status_code == 404
@@ -149,24 +133,29 @@ class TestAssetEndpoints:
         """Test listing assets."""
         # Create a portfolio
         portfolio_response = await client.post(
-            "/api/v1/portfolios",
-            json={"name": "Test Portfolio"}
+            "/api/v1/portfolios", json={"name": "Test Portfolio"}
         )
         portfolio_id = portfolio_response.json()["id"]
 
         # Create some assets
-        await client.post("/api/v1/assets", json={
-            "portfolio_id": portfolio_id,
-            "symbol": "AAPL",
-            "name": "Apple",
-            "quantity": "10"
-        })
-        await client.post("/api/v1/assets", json={
-            "portfolio_id": portfolio_id,
-            "symbol": "GOOGL",
-            "name": "Google",
-            "quantity": "5"
-        })
+        await client.post(
+            "/api/v1/assets",
+            json={
+                "portfolio_id": portfolio_id,
+                "symbol": "AAPL",
+                "name": "Apple",
+                "quantity": "10",
+            },
+        )
+        await client.post(
+            "/api/v1/assets",
+            json={
+                "portfolio_id": portfolio_id,
+                "symbol": "GOOGL",
+                "name": "Google",
+                "quantity": "5",
+            },
+        )
 
         # List all assets
         response = await client.get("/api/v1/assets")
@@ -177,31 +166,31 @@ class TestAssetEndpoints:
     async def test_list_assets_by_portfolio(self, client):
         """Test filtering assets by portfolio."""
         # Create two portfolios
-        portfolio1 = await client.post(
-            "/api/v1/portfolios",
-            json={"name": "Portfolio 1"}
-        )
+        portfolio1 = await client.post("/api/v1/portfolios", json={"name": "Portfolio 1"})
         portfolio1_id = portfolio1.json()["id"]
-        
-        portfolio2 = await client.post(
-            "/api/v1/portfolios",
-            json={"name": "Portfolio 2"}
-        )
+
+        portfolio2 = await client.post("/api/v1/portfolios", json={"name": "Portfolio 2"})
         portfolio2_id = portfolio2.json()["id"]
 
         # Create assets in different portfolios
-        await client.post("/api/v1/assets", json={
-            "portfolio_id": portfolio1_id,
-            "symbol": "AAPL",
-            "name": "Apple",
-            "quantity": "10"
-        })
-        await client.post("/api/v1/assets", json={
-            "portfolio_id": portfolio2_id,
-            "symbol": "GOOGL",
-            "name": "Google",
-            "quantity": "5"
-        })
+        await client.post(
+            "/api/v1/assets",
+            json={
+                "portfolio_id": portfolio1_id,
+                "symbol": "AAPL",
+                "name": "Apple",
+                "quantity": "10",
+            },
+        )
+        await client.post(
+            "/api/v1/assets",
+            json={
+                "portfolio_id": portfolio2_id,
+                "symbol": "GOOGL",
+                "name": "Google",
+                "quantity": "5",
+            },
+        )
 
         # Filter by portfolio
         response = await client.get(f"/api/v1/assets?portfolio_id={portfolio1_id}")
@@ -214,17 +203,14 @@ class TestAssetEndpoints:
         """Test getting a specific asset."""
         # Create a portfolio and asset
         portfolio_response = await client.post(
-            "/api/v1/portfolios",
-            json={"name": "Test Portfolio"}
+            "/api/v1/portfolios", json={"name": "Test Portfolio"}
         )
         portfolio_id = portfolio_response.json()["id"]
 
-        create_response = await client.post("/api/v1/assets", json={
-            "portfolio_id": portfolio_id,
-            "symbol": "TSLA",
-            "name": "Tesla",
-            "quantity": "5"
-        })
+        create_response = await client.post(
+            "/api/v1/assets",
+            json={"portfolio_id": portfolio_id, "symbol": "TSLA", "name": "Tesla", "quantity": "5"},
+        )
         asset_id = create_response.json()["id"]
 
         # Get the asset
@@ -237,25 +223,24 @@ class TestAssetEndpoints:
         """Test updating an asset."""
         # Create a portfolio and asset
         portfolio_response = await client.post(
-            "/api/v1/portfolios",
-            json={"name": "Test Portfolio"}
+            "/api/v1/portfolios", json={"name": "Test Portfolio"}
         )
         portfolio_id = portfolio_response.json()["id"]
 
-        create_response = await client.post("/api/v1/assets", json={
-            "portfolio_id": portfolio_id,
-            "symbol": "MSFT",
-            "name": "Microsoft",
-            "quantity": "20"
-        })
+        create_response = await client.post(
+            "/api/v1/assets",
+            json={
+                "portfolio_id": portfolio_id,
+                "symbol": "MSFT",
+                "name": "Microsoft",
+                "quantity": "20",
+            },
+        )
         asset_id = create_response.json()["id"]
 
         # Update the asset
         update_data = {"quantity": "25", "purchase_price": "300.50"}
-        response = await client.put(
-            f"/api/v1/assets/{asset_id}",
-            json=update_data
-        )
+        response = await client.put(f"/api/v1/assets/{asset_id}", json=update_data)
         assert response.status_code == 200
         data = response.json()
         assert float(data["quantity"]) == 25
@@ -265,17 +250,19 @@ class TestAssetEndpoints:
         """Test deleting an asset."""
         # Create a portfolio and asset
         portfolio_response = await client.post(
-            "/api/v1/portfolios",
-            json={"name": "Test Portfolio"}
+            "/api/v1/portfolios", json={"name": "Test Portfolio"}
         )
         portfolio_id = portfolio_response.json()["id"]
 
-        create_response = await client.post("/api/v1/assets", json={
-            "portfolio_id": portfolio_id,
-            "symbol": "AMZN",
-            "name": "Amazon",
-            "quantity": "15"
-        })
+        create_response = await client.post(
+            "/api/v1/assets",
+            json={
+                "portfolio_id": portfolio_id,
+                "symbol": "AMZN",
+                "name": "Amazon",
+                "quantity": "15",
+            },
+        )
         asset_id = create_response.json()["id"]
 
         # Delete the asset
