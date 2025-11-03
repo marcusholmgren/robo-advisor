@@ -37,3 +37,19 @@ class Asset(Model):
 
     def __str__(self):
         return f"{self.symbol} - {self.name}"
+
+
+class RiskProfile(Model):
+    """Risk profile model representing the user's risk tolerance."""
+
+    id = fields.IntField(primary_key=True)
+    portfolio = fields.OneToOneField("models.Portfolio", related_name="risk_profile")
+    risk_score = fields.IntField()
+    created_at = fields.DatetimeField(auto_now_add=True)
+    updated_at = fields.DatetimeField(auto_now=True)
+
+    class Meta:
+        table = "risk_profiles"
+
+    def __str__(self):
+        return f"Risk profile for portfolio {self.portfolio.name}"
