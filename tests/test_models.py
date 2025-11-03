@@ -9,10 +9,7 @@ class TestPortfolioModel:
 
     async def test_create_portfolio(self):
         """Test creating a portfolio."""
-        portfolio = await Portfolio.create(
-            name="Test Portfolio",
-            description="A test portfolio"
-        )
+        portfolio = await Portfolio.create(name="Test Portfolio", description="A test portfolio")
         assert portfolio.id is not None
         assert portfolio.name == "Test Portfolio"
         assert portfolio.description == "A test portfolio"
@@ -32,16 +29,16 @@ class TestAssetModel:
         """Test creating an asset."""
         # Create a portfolio first
         portfolio = await Portfolio.create(name="Test Portfolio")
-        
+
         # Create an asset
         asset = await Asset.create(
             portfolio=portfolio,
             symbol="AAPL",
             name="Apple Inc.",
             quantity=Decimal("10.5"),
-            purchase_price=Decimal("150.25")
+            purchase_price=Decimal("150.25"),
         )
-        
+
         assert asset.id is not None
         assert asset.symbol == "AAPL"
         assert asset.name == "Apple Inc."
@@ -54,15 +51,12 @@ class TestAssetModel:
         """Test asset-portfolio relationship."""
         # Create a portfolio
         portfolio = await Portfolio.create(name="Test Portfolio")
-        
+
         # Create an asset
         asset = await Asset.create(
-            portfolio=portfolio,
-            symbol="GOOGL",
-            name="Google",
-            quantity=Decimal("5")
+            portfolio=portfolio, symbol="GOOGL", name="Google", quantity=Decimal("5")
         )
-        
+
         # Fetch the asset with portfolio
         fetched_asset = await Asset.get(id=asset.id).prefetch_related("portfolio")
         assert fetched_asset.portfolio.name == "Test Portfolio"
@@ -71,9 +65,6 @@ class TestAssetModel:
         """Test asset string representation."""
         portfolio = await Portfolio.create(name="Test Portfolio")
         asset = await Asset.create(
-            portfolio=portfolio,
-            symbol="TSLA",
-            name="Tesla Inc.",
-            quantity=Decimal("3")
+            portfolio=portfolio, symbol="TSLA", name="Tesla Inc.", quantity=Decimal("3")
         )
         assert str(asset) == "TSLA - Tesla Inc."

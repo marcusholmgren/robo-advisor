@@ -6,7 +6,7 @@ from tortoise.models import Model
 
 class Portfolio(Model):
     """Portfolio model representing an investment portfolio."""
-    
+
     id = fields.IntField(primary_key=True)
     name = fields.CharField(max_length=255)
     description = fields.TextField(null=True)
@@ -22,7 +22,7 @@ class Portfolio(Model):
 
 class Asset(Model):
     """Asset model representing a financial asset in a portfolio."""
-    
+
     id = fields.IntField(primary_key=True)
     portfolio = fields.ForeignKeyField("models.Portfolio", related_name="assets")
     symbol = fields.CharField(max_length=20)

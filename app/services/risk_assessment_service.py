@@ -1,6 +1,7 @@
 from app.models import RiskProfile
 from app.schemas.risk_profile import RiskProfileCreate
 
+
 async def create_risk_profile(risk_profile: RiskProfileCreate) -> RiskProfile:
     """
     Creates a new risk profile for a given portfolio.
