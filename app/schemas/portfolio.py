@@ -37,14 +37,10 @@ class Portfolio(PortfolioBase):
 
 
 class AssetBase(BaseModel):
-    """Base asset schema."""
+    """Base asset schema, without quantity or price."""
 
     symbol: str
     name: str
-    quantity: Decimal
-    purchase_price: Optional[Decimal] = None
-
-    model_config = ConfigDict(json_encoders={Decimal: float})
 
 
 class AssetCreate(AssetBase):
@@ -54,20 +50,53 @@ class AssetCreate(AssetBase):
 
 
 class AssetUpdate(BaseModel):
-    """Schema for updating an asset."""
+    """Schema for updating an asset (e.g., renaming)."""
 
     symbol: Optional[str] = None
     name: Optional[str] = None
-    quantity: Optional[Decimal] = None
-    purchase_price: Optional[Decimal] = None
 
 
 class Asset(AssetBase):
-    """Schema for asset response."""
+    """
+    Schema for asset response. Includes calculated fields for current state.
+    """
 
     id: int
     portfolio_id: int
     created_at: datetime
     updated_at: datetime
+
+    # Optional fields that can be populated by API endpoints
+    current_quantity: Optional[float] = None
+    average_cost_basis: Optional[float] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# --- New Schemas for Trades ---
+
+
+class TradeBase(BaseModel):
+    """Base schema for a trade."""
+
+    trade_date: datetime
+    quantity: Decimal
+    price: Decimal
+    trade_type: str = "BUY"
+
+    model_config = ConfigDict(json_encoders={Decimal: str})
+
+
+class TradeCreate(TradeBase):
+    """Schema for creating a new trade for an asset."""
+
+    asset_id: int
+
+
+class Trade(TradeBase):
+    """Schema for trade response."""
+
+    id: int
+    created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
