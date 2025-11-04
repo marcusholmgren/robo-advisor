@@ -32,22 +32,69 @@ class FinancialModelingService:
         return close_data
 
     def calculate_returns(self, historical_data: pd.DataFrame) -> pd.DataFrame:
-        """Calculates daily returns from historical adjusted close prices."""
+        """
+        Calculates daily returns from historical adjusted close prices.
+
+        Args:
+            historical_data (pd.DataFrame): A DataFrame with historical stock prices.
+
+        Returns:
+            pd.DataFrame: A DataFrame with daily returns.
+        """
         return historical_data.pct_change().dropna()
 
     def calculate_expected_returns(self, daily_returns: pd.DataFrame, trading_days_per_year: int = 252) -> pd.Series:
-        """Calculates expected annual returns."""
+        """
+        Calculates expected annual returns.
+
+        Args:
+            daily_returns (pd.DataFrame): A DataFrame with daily returns.
+            trading_days_per_year (int, optional): The number of trading days in a year. Defaults to 252.
+
+        Returns:
+            pd.Series: A Series with expected annual returns.
+        """
         return daily_returns.mean() * trading_days_per_year
 
     def calculate_covariance_matrix(self, daily_returns: pd.DataFrame, trading_days_per_year: int = 252) -> pd.DataFrame:
-        """Calculates the annual covariance matrix of returns."""
+        """
+        Calculates the annual covariance matrix of returns.
+
+        Args:
+            daily_returns (pd.DataFrame): A DataFrame with daily returns.
+            trading_days_per_year (int, optional): The number of trading days in a year. Defaults to 252.
+
+        Returns:
+            pd.DataFrame: The annual covariance matrix.
+        """
         return daily_returns.cov() * trading_days_per_year
 
     def calculate_sharpe_ratio(self, expected_return, portfolio_volatility, risk_free_rate):
-        """Calculates the Sharpe ratio."""
+        """
+        Calculates the Sharpe ratio for a portfolio.
+
+        Args:
+            expected_return (float): The expected return of the portfolio.
+            portfolio_volatility (float): The volatility (standard deviation) of the portfolio's returns.
+            risk_free_rate (float): The risk-free rate of return.
+
+        Returns:
+            float: The Sharpe ratio.
+        """
         return (expected_return - risk_free_rate) / portfolio_volatility
 
     def find_tangency_portfolio(self, mu, Cov, r_f):
+        """
+        Calculates the weights of the tangency portfolio.
+
+        Args:
+            mu (pd.Series): The expected returns of the assets.
+            Cov (pd.DataFrame): The covariance matrix of the assets.
+            r_f (float): The risk-free rate of return.
+
+        Returns:
+            np.ndarray: The weights of the tangency portfolio.
+        """
         try:
             Cov_inv = np.linalg.inv(Cov)
         except np.linalg.LinAlgError:
@@ -62,11 +109,31 @@ class FinancialModelingService:
         return w_tan
 
     def mu_sigma_portfolio(self, weights, means, Cov):
+        """
+        Calculates the expected return and volatility of a portfolio.
+
+        Args:
+            weights (np.ndarray): The weights of the assets in the portfolio.
+            means (pd.Series): The expected returns of the assets.
+            Cov (pd.DataFrame): The covariance matrix of the assets.
+
+        Returns:
+            tuple: A tuple containing the expected return and volatility of the portfolio.
+        """
         mu_p = np.dot(weights, means)
         sigma_p = (weights @ Cov @ weights) ** 0.5
         return mu_p, sigma_p
 
     def plot_capital_market_line(self, mu_tan, sigma_tan, r_f, x_limit):
+        """
+        Plots the Capital Market Line (CML).
+
+        Args:
+            mu_tan (float): The expected return of the tangency portfolio.
+            sigma_tan (float): The volatility of the tangency portfolio.
+            r_f (float): The risk-free rate of return.
+            x_limit (float): The x-axis limit for the plot.
+        """
         sharpe_ratio = (mu_tan - r_f) / sigma_tan
         print(f"\n--- Tangency Portfolio ---")
         print(f"Max Sharpe Ratio: {sharpe_ratio:.4f}")
@@ -83,7 +150,14 @@ class FinancialModelingService:
 
 
     def plot_min_var_frontier(self, mu, Cov):
-        A, B, C = self.computer_ABC(mu, Cov)
+        """
+        Plots the minimum variance frontier.
+
+        Args:
+            mu (pd.Series): The expected returns of the assets.
+            Cov (pd.DataFrame): The covariance matrix of the assets.
+        """
+        A, B, C = self.compute_ABC(mu, Cov)
 
         # Check for valid determinant
         if (A * C - B * B) <= 0:
@@ -106,6 +180,14 @@ class FinancialModelingService:
         plt.legend()
 
     def plot_random_portfolios(self, mu, Cov, n_simulations):
+        """
+        Plots a scatter plot of random portfolios.
+
+        Args:
+            mu (pd.Series): The expected returns of the assets.
+            Cov (pd.DataFrame): The covariance matrix of the assets.
+            n_simulations (int): The number of random portfolios to generate.
+        """
         n_assets = len(mu)
         mu_p_sims = []
         sigma_p_sims = []
@@ -117,6 +199,14 @@ class FinancialModelingService:
         plt.scatter(sigma_p_sims, mu_p_sims, s=12, alpha=0.6)
 
     def plot_points(self, mu, sigma, stocks):
+        """
+        Plots the individual assets on the mean-variance plot.
+
+        Args:
+            mu (pd.Series): The expected returns of the assets.
+            sigma (pd.Series): The standard deviation of the assets.
+            stocks (list[str]): The list of stock tickers.
+        """
         plt.figure(figsize=(8, 6))
         plt.scatter(sigma, mu, c='black')
         # --- PLOTTING FIX 1: Adjusted xlim ---
@@ -129,7 +219,17 @@ class FinancialModelingService:
             plt.annotate(stock, (sigma.iloc[i], mu.iloc[i]), ha='center',
                          va='bottom', weight='bold')
 
-    def computer_ABC(self, mu, Cov):
+    def compute_ABC(self, mu, Cov):
+        """
+        Computes the A, B, and C constants for the minimum variance frontier.
+
+        Args:
+            mu (pd.Series): The expected returns of the assets.
+            Cov (pd.DataFrame): The covariance matrix of the assets.
+
+        Returns:
+            tuple: A tuple containing the A, B, and C constants.
+        """
         n_assets = len(mu)
         # Handle potential singularity if Cov is not invertible
         try:
@@ -146,10 +246,31 @@ class FinancialModelingService:
         return A, B, C
 
     def random_weights(self, n_assets):
+        """
+        Generates random weights for a portfolio.
+
+        Args:
+            n_assets (int): The number of assets in the portfolio.
+
+        Returns:
+            np.ndarray: An array of random weights.
+        """
         k = np.random.randn(n_assets)
         return k / sum(k)
 
     def generate_markowitz_bullet(self, mu, Cov, r_f, stocks):
+        """
+        Generates the Markowitz bullet plot.
+
+        Args:
+            mu (pd.Series): The expected returns of the assets.
+            Cov (pd.DataFrame): The covariance matrix of the assets.
+            r_f (float): The risk-free rate of return.
+            stocks (list[str]): The list of stock tickers.
+
+        Returns:
+            str: A base64 encoded image of the Markowitz bullet plot.
+        """
         # --- MAIN SCRIPT ---
         n_simulations = 5000
         plot_limit_x = 0.75
