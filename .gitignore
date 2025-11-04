@@ -208,4 +208,4 @@ __marimo__/
 
 
 # Project sqlite database
-portfolio-db.sqlite3
+portfolio-db.sqlite3*

@@ -30,7 +30,7 @@ app = FastAPI(
 )
 
 # Include API routes
-app.include_router(router, prefix="/api/v1", tags=["portfolios", "assets"])
+app.include_router(router, prefix="/api/v1")
 
 
 @app.get("/")

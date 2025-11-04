@@ -7,15 +7,41 @@ from tortoise.exceptions import DoesNotExist
 from app.models import Portfolio, Asset
 from app.services import risk_assessment_service
 from app.schemas.risk_profile import RiskProfile, RiskProfileCreate
+from app.schemas.financial_modeling import FinancialModelingRequest, FinancialModelingResponse, PortfolioAnalysisRequest, PortfolioAnalysisResponse
+from app.services.financial_modeling_service import FinancialModelingService
 from app import schemas
 
 router = APIRouter()
+
+financial_modeling_service = FinancialModelingService()
 
 
 @router.post("/risk-profiles/", response_model=RiskProfile, status_code=status.HTTP_201_CREATED)
 async def create_risk_profile_route(risk_profile: RiskProfileCreate):
     """Create a new risk profile."""
     return await risk_assessment_service.create_risk_profile(risk_profile)
+
+
+@router.post("/financial-modeling/", response_model=FinancialModelingResponse, status_code=status.HTTP_200_OK)
+async def get_financial_metrics(request: FinancialModelingRequest):
+    """Calculate expected returns and covariance matrix for given tickers and date range."""
+    historical_data = financial_modeling_service.get_historical_data(
+        request.tickers, str(request.start_date), str(request.end_date)
+    )
+    if historical_data.empty:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No historical data found for the given tickers and date range."
+        )
+
+    daily_returns = financial_modeling_service.calculate_returns(historical_data)
+    expected_returns = financial_modeling_service.calculate_expected_returns(daily_returns)
+    covariance_matrix = financial_modeling_service.calculate_covariance_matrix(daily_returns)
+
+    return FinancialModelingResponse(
+        expected_returns=expected_returns.to_dict(),
+        covariance_matrix=covariance_matrix.to_dict()
+    )
 
 
 # Portfolio endpoints
@@ -72,6 +98,55 @@ async def delete_portfolio(portfolio_id: int):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Portfolio with id {portfolio_id} not found",
         )
+
+
+@router.post("/portfolios/{portfolio_id}/analysis", response_model=PortfolioAnalysisResponse)
+async def portfolio_analysis(portfolio_id: int, request: PortfolioAnalysisRequest):
+    """Perform a financial analysis of a portfolio."""
+    try:
+        portfolio = await Portfolio.get(id=portfolio_id).prefetch_related("assets")
+    except DoesNotExist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Portfolio with id {portfolio_id} not found",
+        )
+
+    tickers = [asset.symbol for asset in portfolio.assets]
+    if not tickers:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Portfolio has no assets to analyze.",
+        )
+
+    # Fetch historical data
+    # TODO: Make the date range configurable
+    historical_data = financial_modeling_service.get_historical_data(
+        tickers, "2020-01-01", "2023-01-01"
+    )
+    if historical_data.empty:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No historical data found for the given tickers and date range.",
+        )
+
+    # Perform calculations
+    daily_returns = financial_modeling_service.calculate_returns(historical_data)
+    mu = financial_modeling_service.calculate_expected_returns(daily_returns)
+    Cov = financial_modeling_service.calculate_covariance_matrix(daily_returns)
+
+    # Calculate Sharpe Ratio for the tangency portfolio
+    w_tan = financial_modeling_service.find_tangency_portfolio(mu, Cov, request.risk_free_rate)
+    mu_tan, sigma_tan = financial_modeling_service.mu_sigma_portfolio(w_tan, mu, Cov)
+    sharpe_ratio = financial_modeling_service.calculate_sharpe_ratio(mu_tan, sigma_tan, request.risk_free_rate)
+
+    # Generate Markowitz Bullet Plot
+    plot_base64 = financial_modeling_service.generate_markowitz_bullet(mu, Cov, request.risk_free_rate, tickers)
+
+    return PortfolioAnalysisResponse(
+        sharpe_ratio=sharpe_ratio,
+        tangency_portfolio_weights=dict(zip(tickers, w_tan)),
+        markowitz_bullet_plot=plot_base64,
+    )
 
 
 # Asset endpoints

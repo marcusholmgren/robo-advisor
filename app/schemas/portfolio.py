@@ -44,6 +44,8 @@ class AssetBase(BaseModel):
     quantity: Decimal
     purchase_price: Optional[Decimal] = None
 
+    model_config = ConfigDict(json_encoders={Decimal: float})
+
 
 class AssetCreate(AssetBase):
     """Schema for creating an asset."""
