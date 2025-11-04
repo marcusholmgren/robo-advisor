@@ -2,6 +2,8 @@
 
 A Python FastAPI application with TortoiseORM backend that stores data in a SQLite database.
 
+![Gemini generated image of a robot holding a digital notebook with a bar chart](docs/Gemini_Generated_Image_cmj0ibcmj0ibcmj0.jpg "Robot Advisor")
+
 ## Features
 
 - **FastAPI** - Modern, fast web framework for building APIs
