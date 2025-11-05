@@ -4,12 +4,18 @@ from typing import List
 from fastapi import APIRouter, HTTPException, status
 from tortoise.exceptions import DoesNotExist
 
-from app.models import Portfolio, Asset
+from app.models import Portfolio, Asset, Trade
 from app.services import risk_assessment_service
 from app.schemas.risk_profile import RiskProfile, RiskProfileCreate
-from app.schemas.financial_modeling import FinancialModelingRequest, FinancialModelingResponse, PortfolioAnalysisRequest, PortfolioAnalysisResponse
+from app.schemas.financial_modeling import (
+    FinancialModelingRequest,
+    FinancialModelingResponse,
+    PortfolioAnalysisRequest,
+    PortfolioAnalysisResponse,
+)
 from app.services.financial_modeling_service import FinancialModelingService
 from app import schemas
+from app.schemas.portfolio import Trade as TradeSchema, TradeCreate, TradeBase
 
 router = APIRouter()
 
@@ -22,7 +28,9 @@ async def create_risk_profile_route(risk_profile: RiskProfileCreate):
     return await risk_assessment_service.create_risk_profile(risk_profile)
 
 
-@router.post("/financial-modeling/", response_model=FinancialModelingResponse, status_code=status.HTTP_200_OK)
+@router.post(
+    "/financial-modeling/", response_model=FinancialModelingResponse, status_code=status.HTTP_200_OK
+)
 async def get_financial_metrics(request: FinancialModelingRequest):
     """Calculate expected returns and covariance matrix for given tickers and date range."""
     historical_data = financial_modeling_service.get_historical_data(
@@ -31,7 +39,7 @@ async def get_financial_metrics(request: FinancialModelingRequest):
     if historical_data.empty:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No historical data found for the given tickers and date range."
+            detail="No historical data found for the given tickers and date range.",
         )
 
     daily_returns = financial_modeling_service.calculate_returns(historical_data)
@@ -39,8 +47,7 @@ async def get_financial_metrics(request: FinancialModelingRequest):
     covariance_matrix = financial_modeling_service.calculate_covariance_matrix(daily_returns)
 
     return FinancialModelingResponse(
-        expected_returns=expected_returns.to_dict(),
-        covariance_matrix=covariance_matrix.to_dict()
+        expected_returns=expected_returns.to_dict(), covariance_matrix=covariance_matrix.to_dict()
     )
 
 
@@ -137,10 +144,14 @@ async def portfolio_analysis(portfolio_id: int, request: PortfolioAnalysisReques
     # Calculate Sharpe Ratio for the tangency portfolio
     w_tan = financial_modeling_service.find_tangency_portfolio(mu, Cov, request.risk_free_rate)
     mu_tan, sigma_tan = financial_modeling_service.mu_sigma_portfolio(w_tan, mu, Cov)
-    sharpe_ratio = financial_modeling_service.calculate_sharpe_ratio(mu_tan, sigma_tan, request.risk_free_rate)
+    sharpe_ratio = financial_modeling_service.calculate_sharpe_ratio(
+        mu_tan, sigma_tan, request.risk_free_rate
+    )
 
     # Generate Markowitz Bullet Plot
-    plot_base64 = financial_modeling_service.generate_markowitz_bullet(mu, Cov, request.risk_free_rate, tickers)
+    plot_base64 = financial_modeling_service.generate_markowitz_bullet(
+        mu, Cov, request.risk_free_rate, tickers
+    )
 
     return PortfolioAnalysisResponse(
         sharpe_ratio=sharpe_ratio,
@@ -162,10 +173,18 @@ async def list_assets(portfolio_id: int = None):
 
 @router.get("/assets/{asset_id}", response_model=schemas.Asset)
 async def get_asset(asset_id: int):
-    """Get a specific asset by ID."""
+    """
+    Get a specific asset by ID, including its calculated
+    quantity and average cost basis.
+    """
     try:
         asset = await Asset.get(id=asset_id)
-        return asset
+        # Create a Pydantic model from the Tortoise model
+        asset_schema = schemas.Asset.model_validate(asset)
+        # Calculate and set the dynamic fields
+        asset_schema.current_quantity = await asset.get_current_quantity()
+        asset_schema.average_cost_basis = await asset.get_average_cost_basis()
+        return asset_schema
     except DoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Asset with id {asset_id} not found"
@@ -174,8 +193,10 @@ async def get_asset(asset_id: int):
 
 @router.post("/assets", response_model=schemas.Asset, status_code=status.HTTP_201_CREATED)
 async def create_asset(asset: schemas.AssetCreate):
-    """Create a new asset."""
-    # Check if portfolio exists
+    """
+    Create a new asset parent. This does not include any trades.
+    A trade must be added separately.
+    """
     try:
         await Portfolio.get(id=asset.portfolio_id)
     except DoesNotExist:
@@ -184,14 +205,23 @@ async def create_asset(asset: schemas.AssetCreate):
             detail=f"Portfolio with id {asset.portfolio_id} not found",
         )
 
-    asset_data = asset.model_dump()
-    asset_obj = await Asset.create(**asset_data)
+    # Check if an asset with the same symbol already exists in the portfolio
+    existing_asset = await Asset.filter(
+        portfolio_id=asset.portfolio_id, symbol=asset.symbol
+    ).first()
+    if existing_asset:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Asset with symbol '{asset.symbol}' already exists in this portfolio.",
+        )
+
+    asset_obj = await Asset.create(**asset.model_dump())
     return asset_obj
 
 
 @router.put("/assets/{asset_id}", response_model=schemas.Asset)
 async def update_asset(asset_id: int, asset: schemas.AssetUpdate):
-    """Update an existing asset."""
+    """Update an asset's details (e.g., name or symbol)."""
     try:
         asset_obj = await Asset.get(id=asset_id)
         update_data = asset.model_dump(exclude_unset=True)
@@ -205,11 +235,86 @@ async def update_asset(asset_id: int, asset: schemas.AssetUpdate):
 
 @router.delete("/assets/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_asset(asset_id: int):
-    """Delete an asset."""
+    """
+    Delete an asset and all its associated trades.
+    """
     try:
         asset = await Asset.get(id=asset_id)
+        # The database cascade should handle deleting related trades
         await asset.delete()
     except DoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Asset with id {asset_id} not found"
+        )
+
+
+# --- Trade Endpoints ---
+
+
+@router.post("/trades", response_model=TradeSchema, status_code=status.HTTP_201_CREATED)
+async def create_trade(trade: TradeCreate):
+    """Create a new trade for an asset."""
+    try:
+        # Ensure the asset exists before creating a trade for it
+        await Asset.get(id=trade.asset_id)
+    except DoesNotExist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Asset with id {trade.asset_id} not found. Cannot create trade.",
+        )
+
+    trade_obj = await Trade.create(**trade.model_dump())
+    return trade_obj
+
+
+@router.get("/assets/{asset_id}/trades", response_model=List[TradeSchema])
+async def list_trades_for_asset(asset_id: int):
+    """List all trades for a specific asset."""
+    try:
+        # Ensure the asset exists
+        asset = await Asset.get(id=asset_id)
+        # Fetch all trades related to this asset
+        trades = await Trade.filter(asset_id=asset.id).order_by("-trade_date")
+        return trades
+    except DoesNotExist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Asset with id {asset_id} not found."
+        )
+
+
+@router.get("/trades/{trade_id}", response_model=TradeSchema)
+async def get_trade(trade_id: int):
+    """Get a specific trade by its ID."""
+    try:
+        trade = await Trade.get(id=trade_id)
+        return trade
+    except DoesNotExist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Trade with id {trade_id} not found."
+        )
+
+
+@router.put("/trades/{trade_id}", response_model=TradeSchema)
+async def update_trade(trade_id: int, trade: TradeBase):
+    """Update the details of a specific trade."""
+    try:
+        trade_obj = await Trade.get(id=trade_id)
+        update_data = trade.model_dump(exclude_unset=True)
+        await trade_obj.update_from_dict(update_data).save()
+        return trade_obj
+    except DoesNotExist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Trade with id {trade_id} not found."
+        )
+
+
+@router.delete("/trades/{trade_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_trade(trade_id: int):
+    """Delete a specific trade."""
+    try:
+        trade = await Trade.get(id=trade_id)
+        await trade.delete()
+    except DoesNotExist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Trade with id {trade_id} not found."
         )
