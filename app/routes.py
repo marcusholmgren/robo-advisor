@@ -161,14 +161,20 @@ async def portfolio_analysis(portfolio_id: int, request: PortfolioAnalysisReques
 
 
 # Asset endpoints
-@router.get("/assets", response_model=List[schemas.Asset])
-async def list_assets(portfolio_id: int = None):
-    """List all assets, optionally filtered by portfolio."""
-    if portfolio_id:
-        assets = await Asset.filter(portfolio_id=portfolio_id)
-    else:
-        assets = await Asset.all()
-    return assets
+@router.get("/portfolios/{portfolio_id}/assets", response_model=List[schemas.Asset])
+async def list_assets(portfolio_id: int):
+    """List all assets for a specific portfolio."""
+    assets_from_db = await Asset.filter(portfolio_id=portfolio_id)
+
+    # Create a list of Pydantic models, calculating dynamic fields for each asset
+    asset_schemas = []
+    for asset in assets_from_db:
+        asset_schema = schemas.Asset.model_validate(asset)
+        asset_schema.current_quantity = await asset.get_current_quantity()
+        asset_schema.average_cost_basis = await asset.get_average_cost_basis()
+        asset_schemas.append(asset_schema)
+
+    return asset_schemas
 
 
 @router.get("/assets/{asset_id}", response_model=schemas.Asset)
