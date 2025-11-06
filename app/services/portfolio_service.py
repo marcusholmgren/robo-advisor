@@ -28,6 +28,7 @@ class PortfolioService:
         total_portfolio_value = 0
         for asset in portfolio.assets:
             asset.current_quantity = await asset.get_current_quantity()
+            asset.average_cost_basis = await asset.get_average_cost_basis()
             ticker = yf.Ticker(asset.symbol)
             current_price = ticker.history(period="1d")["Close"].iloc[-1]
             asset.holdings = asset.current_quantity * current_price
