@@ -25,18 +25,42 @@ class PortfolioService:
         except DoesNotExist:
             return None
 
-        total_portfolio_value = 0
+        total_holdings_value = 0
+        total_cost_basis = 0
+
         for asset in portfolio.assets:
             asset.current_quantity = await asset.get_current_quantity()
             asset.average_cost_basis = await asset.get_average_cost_basis()
             ticker = yf.Ticker(asset.symbol)
             current_price = ticker.history(period="1d")["Close"].iloc[-1]
-            asset.holdings = asset.current_quantity * current_price
-            total_portfolio_value += asset.holdings
 
-        if total_portfolio_value > 0:
+            asset.current_price = current_price
+            asset.holdings = asset.current_quantity * current_price
+            asset.total_cost = asset.current_quantity * asset.average_cost_basis
+            asset.unrealized_pnl = asset.holdings - asset.total_cost
+            if asset.total_cost > 0:
+                asset.unrealized_pnl_pct = (asset.unrealized_pnl / asset.total_cost) * 100
+            else:
+                asset.unrealized_pnl_pct = 0
+
+            total_holdings_value += asset.holdings
+            total_cost_basis += asset.total_cost
+
+        portfolio.total_holdings_value = total_holdings_value
+        portfolio.cash = 0.0  # Placeholder for cash
+        portfolio.total_portfolio_value = total_holdings_value + portfolio.cash
+        portfolio.total_cost_basis = total_cost_basis
+        portfolio.total_unrealized_pnl = total_holdings_value - total_cost_basis
+        if total_cost_basis > 0:
+            portfolio.total_unrealized_pnl_pct = (
+                portfolio.total_unrealized_pnl / total_cost_basis
+            ) * 100
+        else:
+            portfolio.total_unrealized_pnl_pct = 0
+
+        if portfolio.total_portfolio_value > 0:
             for asset in portfolio.assets:
-                asset.weight = (asset.holdings / total_portfolio_value) * 100
+                asset.weight = (asset.holdings / portfolio.total_portfolio_value) * 100
         else:
             for asset in portfolio.assets:
                 asset.weight = 0

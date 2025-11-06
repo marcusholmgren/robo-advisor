@@ -107,9 +107,19 @@ class AssetHolding(Asset):
 
     holdings: float
     weight: float
+    current_price: Optional[float] = None
+    total_cost: Optional[float] = None
+    unrealized_pnl: Optional[float] = None
+    unrealized_pnl_pct: Optional[float] = None
 
 
 class PortfolioDetails(Portfolio):
     """Schema for portfolio response, including asset holdings."""
 
     assets: List[AssetHolding]
+    total_holdings_value: Optional[float] = None
+    cash: Optional[float] = None
+    total_portfolio_value: Optional[float] = None
+    total_cost_basis: Optional[float] = None
+    total_unrealized_pnl: Optional[float] = None
+    total_unrealized_pnl_pct: Optional[float] = None
