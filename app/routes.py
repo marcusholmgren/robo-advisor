@@ -14,12 +14,19 @@ from app.schemas.financial_modeling import (
     PortfolioAnalysisResponse,
 )
 from app.services.financial_modeling_service import FinancialModelingService
+from app.services.portfolio_service import PortfolioService
 from app import schemas
-from app.schemas.portfolio import Trade as TradeSchema, TradeCreate, TradeBase
+from app.schemas.portfolio import (
+    Trade as TradeSchema,
+    TradeCreate,
+    TradeBase,
+    PortfolioDetails,
+)
 
 router = APIRouter()
 
 financial_modeling_service = FinancialModelingService()
+portfolio_service = PortfolioService()
 
 
 @router.post("/risk-profiles/", response_model=RiskProfile, status_code=status.HTTP_201_CREATED)
@@ -59,17 +66,16 @@ async def list_portfolios():
     return portfolios
 
 
-@router.get("/portfolios/{portfolio_id}", response_model=schemas.Portfolio)
+@router.get("/portfolios/{portfolio_id}", response_model=PortfolioDetails)
 async def get_portfolio(portfolio_id: int):
     """Get a specific portfolio by ID."""
-    try:
-        portfolio = await Portfolio.get(id=portfolio_id)
-        return portfolio
-    except DoesNotExist:
+    portfolio = await portfolio_service.get_portfolio_details(portfolio_id)
+    if not portfolio:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Portfolio with id {portfolio_id} not found",
         )
+    return portfolio
 
 
 @router.post("/portfolios", response_model=schemas.Portfolio, status_code=status.HTTP_201_CREATED)

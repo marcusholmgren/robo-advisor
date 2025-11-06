@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, ConfigDict
 
 
@@ -100,3 +100,16 @@ class Trade(TradeBase):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AssetHolding(Asset):
+    """Schema for asset response, including holdings and weight."""
+
+    holdings: float
+    weight: float
+
+
+class PortfolioDetails(Portfolio):
+    """Schema for portfolio response, including asset holdings."""
+
+    assets: List[AssetHolding]

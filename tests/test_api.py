@@ -1,4 +1,6 @@
 from datetime import datetime, UTC
+from unittest.mock import patch
+import pandas as pd
 
 
 class TestRootEndpoints:
@@ -40,13 +42,81 @@ class TestPortfolioEndpoints:
         assert response.status_code == 200
         assert len(response.json()) >= 2
 
-    async def test_get_portfolio(self, client):
-        """Test getting a specific portfolio."""
-        create_response = await client.post("/api/v1/portfolios", json={"name": "Test Portfolio"})
-        portfolio_id = create_response.json()["id"]
+    @patch("app.services.portfolio_service.yf.Ticker")
+    async def test_get_portfolio_with_holdings(self, mock_ticker, client):
+        """Test getting a portfolio includes asset holdings and weights."""
+
+        # Mock the yfinance Ticker history method
+        mock_ticker.return_value.history.side_effect = [
+            pd.DataFrame({"Close": [150.0]}),  # Mock price for ASSET1
+            pd.DataFrame({"Close": [75.0]}),  # Mock price for ASSET2
+        ]
+
+        # 1. Create a portfolio
+        portfolio_res = await client.post(
+            "/api/v1/portfolios", json={"name": "Holdings Test Portfolio"}
+        )
+        portfolio_id = portfolio_res.json()["id"]
+
+        # 2. Create two assets in the portfolio
+        asset1_res = await client.post(
+            "/api/v1/assets",
+            json={"portfolio_id": portfolio_id, "symbol": "ASSET1", "name": "Asset One"},
+        )
+        asset1_id = asset1_res.json()["id"]
+
+        asset2_res = await client.post(
+            "/api/v1/assets",
+            json={"portfolio_id": portfolio_id, "symbol": "ASSET2", "name": "Asset Two"},
+        )
+        asset2_id = asset2_res.json()["id"]
+
+        # 3. Add trades to each asset
+        # Asset 1: 10 shares
+        await client.post(
+            "/api/v1/trades",
+            json={
+                "asset_id": asset1_id,
+                "trade_date": datetime.now(UTC).isoformat(),
+                "quantity": "10",
+                "price": "100",
+            },
+        )
+        # Asset 2: 20 shares
+        await client.post(
+            "/api/v1/trades",
+            json={
+                "asset_id": asset2_id,
+                "trade_date": datetime.now(UTC).isoformat(),
+                "quantity": "20",
+                "price": "50",
+            },
+        )
+
+        # 4. Call the get_portfolio endpoint
         response = await client.get(f"/api/v1/portfolios/{portfolio_id}")
         assert response.status_code == 200
-        assert response.json()["name"] == "Test Portfolio"
+        data = response.json()
+
+        # 5. Assert the response is correct
+        assert data["name"] == "Holdings Test Portfolio"
+        assert len(data["assets"]) == 2
+
+        asset1_data = next((a for a in data["assets"] if a["symbol"] == "ASSET1"), None)
+        asset2_data = next((a for a in data["assets"] if a["symbol"] == "ASSET2"), None)
+
+        assert asset1_data is not None
+        assert asset2_data is not None
+
+        # Check holdings (quantity * mocked_current_price)
+        # ASSET1: 10 * 150.0 = 1500.0
+        # ASSET2: 20 * 75.0 = 1500.0
+        assert asset1_data["holdings"] == 1500.0
+        assert asset2_data["holdings"] == 1500.0
+
+        # Check weights (total value is $3000, so each should be 50%)
+        assert asset1_data["weight"] == 50.0
+        assert asset2_data["weight"] == 50.0
 
     async def test_update_portfolio(self, client):
         """Test updating a portfolio."""
