@@ -203,23 +203,23 @@ async def get_asset(asset_id: int):
         )
 
 
-@router.post("/assets", response_model=schemas.Asset, status_code=status.HTTP_201_CREATED)
-async def create_asset(asset: schemas.AssetCreate):
+@router.post("/portfolios/{portfolio_id}/assets", response_model=schemas.Asset, status_code=status.HTTP_201_CREATED)
+async def create_asset(portfolio_id: int, asset: schemas.AssetCreate):
     """
     Create a new asset parent. This does not include any trades.
     A trade must be added separately.
     """
     try:
-        await Portfolio.get(id=asset.portfolio_id)
+        await Portfolio.get(id=portfolio_id)
     except DoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Portfolio with id {asset.portfolio_id} not found",
+            detail=f"Portfolio with id {portfolio_id} not found",
         )
 
     # Check if an asset with the same symbol already exists in the portfolio
     existing_asset = await Asset.filter(
-        portfolio_id=asset.portfolio_id, symbol=asset.symbol
+        portfolio_id=portfolio_id, symbol=asset.symbol
     ).first()
     if existing_asset:
         raise HTTPException(
@@ -227,7 +227,7 @@ async def create_asset(asset: schemas.AssetCreate):
             detail=f"Asset with symbol '{asset.symbol}' already exists in this portfolio.",
         )
 
-    asset_obj = await Asset.create(**asset.model_dump())
+    asset_obj = await Asset.create(portfolio_id=portfolio_id, **asset.model_dump())
     return asset_obj
 
 

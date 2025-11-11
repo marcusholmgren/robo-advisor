@@ -1,9 +1,12 @@
+import logging
 import yfinance as yf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import io
 import base64
+
+logger = logging.getLogger(__name__)
 
 
 class FinancialModelingService:
@@ -142,10 +145,10 @@ class FinancialModelingService:
             x_limit (float): The x-axis limit for the plot.
         """
         sharpe_ratio = (mu_tan - r_f) / sigma_tan
-        print("\n--- Tangency Portfolio ---")
-        print(f"Max Sharpe Ratio: {sharpe_ratio:.4f}")
-        print(f"Return (μ): {mu_tan:.4f}")
-        print(f"Volatility (σ): {sigma_tan:.4f}")
+        logger.info("--- Tangency Portfolio ---")
+        logger.info(f"Max Sharpe Ratio: {sharpe_ratio:.4f}")
+        logger.info(f"Return (μ): {mu_tan:.4f}")
+        logger.info(f"Volatility (σ): {sigma_tan:.4f}")
 
         x_cml = np.linspace(0, x_limit, 100)
         y_cml = r_f + sharpe_ratio * x_cml
@@ -169,7 +172,7 @@ class FinancialModelingService:
 
         # Check for valid determinant
         if (A * C - B * B) <= 0:
-            print("Error: Cannot compute frontier, check data.")
+            logger.error("Error: Cannot compute frontier, check data. Determinant is non-positive.")
             return
 
         # Global Minimum Variance (GMV) return
@@ -182,7 +185,7 @@ class FinancialModelingService:
 
         # Plot efficient frontier (from GMV up to plot limit)
         # --- PLOTTING FIX 2: Adjusted linspace upper bound ---
-        y = np.linspace(gmv_return, 0.25, 100)
+        y = np.linspace(gmv_return, 1 - max(mu)*1.1, 100)
         x = np.sqrt((A * y * y - 2 * B * y + C) / (A * C - B * B))
         plt.plot(x, y, color="black", lw=2.5, label="Efficient Frontier")
         plt.legend()
@@ -212,13 +215,13 @@ class FinancialModelingService:
 
         Args:
             mu (pd.Series): The expected returns of the assets.
-            sigma (pd.Series): The standard deviation of the assets.
+            sigma (np.ndarray): The standard deviation of the assets.
             stocks (list[str]): The list of stock tickers.
         """
         plt.figure(figsize=(8, 6))
         plt.scatter(sigma, mu, c="black")
         # --- PLOTTING FIX 1: Adjusted xlim ---
-        plt.xlim(0, 0.75)
+        plt.xlim(0, max(sigma)*1.1)
         plt.ylim(0, 0.25)
         plt.ylabel("Mean (Annual Expected Return)")
         plt.xlabel("Standard Deviation (Annual Volatility)")
@@ -244,7 +247,7 @@ class FinancialModelingService:
         try:
             Cov_inv = np.linalg.inv(Cov)
         except np.linalg.LinAlgError:
-            print("Error: Covariance matrix is singular, cannot be inverted.")
+            logger.warning("Covariance matrix is singular, using pseudo-inverse.")
             # Use pseudo-inverse as a fallback
             Cov_inv = np.linalg.pinv(Cov)
 
@@ -285,16 +288,13 @@ class FinancialModelingService:
         plot_limit_x = 0.75
         plot_limit_y = 0.25
 
-        # Define the risk-free rate
-        r_f = 0.01
-
         # --- 1. Find the Tangency Portfolio ---
         w_tan = self.find_tangency_portfolio(mu, Cov, r_f)
         mu_tan, sigma_tan = self.mu_sigma_portfolio(w_tan, mu, Cov)
 
-        print("Tangency Portfolio Weights:")
+        logger.info("Tangency Portfolio Weights:")
         for i, stock in enumerate(stocks):
-            print(f"{stock}: {w_tan[i]:.4f}")
+            logger.info(f"{stock}: {w_tan[i]:.4f}")
 
         # --- 2. Plot everything ---
         self.plot_points(mu, np.diag(Cov) ** 0.5, stocks)

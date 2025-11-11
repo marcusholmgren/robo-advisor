@@ -60,14 +60,14 @@ class TestPortfolioEndpoints:
 
         # 2. Create two assets in the portfolio
         asset1_res = await client.post(
-            "/api/v1/assets",
-            json={"portfolio_id": portfolio_id, "symbol": "ASSET1", "name": "Asset One"},
+            f"/api/v1/portfolios/{portfolio_id}/assets",
+            json={"symbol": "ASSET1", "name": "Asset One"},
         )
         asset1_id = asset1_res.json()["id"]
 
         asset2_res = await client.post(
-            "/api/v1/assets",
-            json={"portfolio_id": portfolio_id, "symbol": "ASSET2", "name": "Asset Two"},
+            f"/api/v1/portfolios/{portfolio_id}/assets",
+            json={"symbol": "ASSET2", "name": "Asset Two"},
         )
         asset2_id = asset2_res.json()["id"]
 
@@ -146,8 +146,8 @@ class TestAssetEndpoints:
         )
         portfolio_id = portfolio_res.json()["id"]
 
-        asset_data = {"portfolio_id": portfolio_id, "symbol": "AAPL", "name": "Apple Inc."}
-        response = await client.post("/api/v1/assets", json=asset_data)
+        asset_data = {"symbol": "AAPL", "name": "Apple Inc."}
+        response = await client.post(f"/api/v1/portfolios/{portfolio_id}/assets", json=asset_data)
 
         assert response.status_code == 201
         data = response.json()
@@ -160,7 +160,7 @@ class TestAssetEndpoints:
         portfolio_res = await client.post("/api/v1/portfolios", json={"name": "Calc Portfolio"})
         portfolio_id = portfolio_res.json()["id"]
         asset_res = await client.post(
-            "/api/v1/assets", json={"portfolio_id": portfolio_id, "symbol": "TSLA", "name": "Tesla"}
+            f"/api/v1/portfolios/{portfolio_id}/assets", json={"symbol": "TSLA", "name": "Tesla"}
         )
         asset_id = asset_res.json()["id"]
 
@@ -186,8 +186,8 @@ class TestAssetEndpoints:
         portfolio_res = await client.post("/api/v1/portfolios", json={"name": "Update Portfolio"})
         portfolio_id = portfolio_res.json()["id"]
         asset_res = await client.post(
-            "/api/v1/assets",
-            json={"portfolio_id": portfolio_id, "symbol": "MSFT", "name": "Microsoft"},
+            f"/api/v1/portfolios/{portfolio_id}/assets",
+            json={"symbol": "MSFT", "name": "Microsoft"},
         )
         asset_id = asset_res.json()["id"]
 
@@ -205,8 +205,8 @@ class TestTradeEndpoints:
         portfolio_res = await client.post("/api/v1/portfolios", json={"name": "Trade Portfolio"})
         portfolio_id = portfolio_res.json()["id"]
         asset_res = await client.post(
-            "/api/v1/assets",
-            json={"portfolio_id": portfolio_id, "symbol": "NVDA", "name": "Nvidia"},
+            f"/api/v1/portfolios/{portfolio_id}/assets",
+            json={"symbol": "NVDA", "name": "Nvidia"},
         )
         asset_id = asset_res.json()["id"]
 
@@ -220,8 +220,8 @@ class TestTradeEndpoints:
         response = await client.post("/api/v1/trades", json=trade_data)
         assert response.status_code == 201
         data = response.json()
-        assert data["quantity"] == "5"
-        assert data["price"] == "550.5"
+        assert data["quantity"] == 5.0
+        assert data["price"] == 550.5
         assert "id" in data
 
     async def test_list_trades_for_asset(self, client):
@@ -231,8 +231,8 @@ class TestTradeEndpoints:
         )
         portfolio_id = portfolio_res.json()["id"]
         asset_res = await client.post(
-            "/api/v1/assets",
-            json={"portfolio_id": portfolio_id, "symbol": "GOOGL", "name": "Alphabet"},
+            f"/api/v1/portfolios/{portfolio_id}/assets",
+            json={"symbol": "GOOGL", "name": "Alphabet"},
         )
         asset_id = asset_res.json()["id"]
 
@@ -267,8 +267,8 @@ class TestTradeEndpoints:
         )
         portfolio_id = portfolio_res.json()["id"]
         asset_res = await client.post(
-            "/api/v1/assets",
-            json={"portfolio_id": portfolio_id, "symbol": "AMZN", "name": "Amazon"},
+            f"/api/v1/portfolios/{portfolio_id}/assets",
+            json={"symbol": "AMZN", "name": "Amazon"},
         )
         asset_id = asset_res.json()["id"]
         trade_res = await client.post(

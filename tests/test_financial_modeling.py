@@ -147,17 +147,25 @@ async def test_portfolio_analysis_endpoint_success(mock_get_historical_data):
             "description": "A portfolio for testing the analysis endpoint.",
         },
     )
-    assert portfolio_response.status_code == 201
+    assert portfolio_response.status_code == 201, portfolio_response.json()
     portfolio_id = portfolio_response.json()["id"]
 
     # 2. Add assets to the portfolio
     assets_to_create = [
-        {"symbol": "AAPL", "name": "Apple Inc.", "quantity": 10, "portfolio_id": portfolio_id},
-        {"symbol": "MSFT", "name": "Microsoft Corp.", "quantity": 5, "portfolio_id": portfolio_id},
+        {
+            "symbol": "AAPL",
+            "name": "Apple Inc.",
+            "quantity": 10,
+        },
+        {
+            "symbol": "MSFT",
+            "name": "Microsoft Corp.",
+            "quantity": 5,
+        },
     ]
     for asset_data in assets_to_create:
-        asset_response = client.post("/api/v1/assets", json=asset_data)
-        assert asset_response.status_code == 201
+        asset_response = client.post(f"/api/v1/portfolios/{portfolio_id}/assets", json=asset_data)
+        assert asset_response.status_code == 201, asset_response.json()
 
     # 3. Call the analysis endpoint
     analysis_response = client.post(

@@ -1,7 +1,6 @@
 """Pydantic schemas for request/response validation."""
 
 from datetime import datetime
-from decimal import Decimal
 from typing import Optional, List
 from pydantic import BaseModel, ConfigDict
 
@@ -46,8 +45,7 @@ class AssetBase(BaseModel):
 class AssetCreate(AssetBase):
     """Schema for creating an asset."""
 
-    portfolio_id: int
-
+    pass
 
 class AssetUpdate(BaseModel):
     """Schema for updating an asset (e.g., renaming)."""
@@ -80,11 +78,9 @@ class TradeBase(BaseModel):
     """Base schema for a trade."""
 
     trade_date: datetime
-    quantity: Decimal
-    price: Decimal
+    quantity: float
+    price: float
     trade_type: str = "BUY"
-
-    model_config = ConfigDict(json_encoders={Decimal: str})
 
 
 class TradeCreate(TradeBase):
