@@ -1,3 +1,10 @@
+"""
+/home/marcus/code/marcus/robo-advisor/app/services/financial_modeling_service.py
+Service for financial modeling and analysis.
+This file provides methods for calculating returns, covariance, and generating Markowitz plots.
+RELEVANT FILES: app/routes.py, app/schemas/financial_modeling.py
+"""
+
 import logging
 import yfinance as yf
 import pandas as pd
@@ -10,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 class FinancialModelingService:
+    """Service for financial modeling and analysis."""
+
     def __init__(self):
         pass
 
@@ -93,45 +102,45 @@ class FinancialModelingService:
         """
         return (expected_return - risk_free_rate) / portfolio_volatility
 
-    def find_tangency_portfolio(self, mu, Cov, r_f):
+    def find_tangency_portfolio(self, mu, cov, r_f):
         """
         Calculates the weights of the tangency portfolio.
 
         Args:
             mu (pd.Series): The expected returns of the assets.
-            Cov (pd.DataFrame): The covariance matrix of the assets.
+            cov (pd.DataFrame): The covariance matrix of the assets.
             r_f (float): The risk-free rate of return.
 
         Returns:
             np.ndarray: The weights of the tangency portfolio.
         """
         try:
-            Cov_inv = np.linalg.inv(Cov)
+            cov_inv = np.linalg.inv(cov)
         except np.linalg.LinAlgError:
-            Cov_inv = np.linalg.pinv(Cov)
+            cov_inv = np.linalg.pinv(cov)
         ones = np.ones(len(mu))
-        A = ones @ Cov_inv @ ones
-        B = ones @ Cov_inv @ mu
+        a = ones @ cov_inv @ ones
+        b = ones @ cov_inv @ mu
         mu_excess = mu - r_f * ones
-        denominator = B - r_f * A
-        numerator = Cov_inv @ mu_excess
+        denominator = b - r_f * a
+        numerator = cov_inv @ mu_excess
         w_tan = numerator / denominator
         return w_tan
 
-    def mu_sigma_portfolio(self, weights, means, Cov):
+    def mu_sigma_portfolio(self, weights, means, cov):
         """
         Calculates the expected return and volatility of a portfolio.
 
         Args:
             weights (np.ndarray): The weights of the assets in the portfolio.
             means (pd.Series): The expected returns of the assets.
-            Cov (pd.DataFrame): The covariance matrix of the assets.
+            cov (pd.DataFrame): The covariance matrix of the assets.
 
         Returns:
             tuple: A tuple containing the expected return and volatility of the portfolio.
         """
         mu_p = np.dot(weights, means)
-        sigma_p = (weights @ Cov @ weights) ** 0.5
+        sigma_p = (weights @ cov @ weights) ** 0.5
         return mu_p, sigma_p
 
     def plot_capital_market_line(self, mu_tan, sigma_tan, r_f, x_limit):
@@ -160,43 +169,43 @@ class FinancialModelingService:
         plt.plot(0, r_f, "ro", markersize=8)
         plt.annotate("Risk-Free Asset", (0.01, r_f), va="center")
 
-    def plot_min_var_frontier(self, mu, Cov):
+    def plot_min_var_frontier(self, mu, cov):
         """
         Plots the minimum variance frontier.
 
         Args:
             mu (pd.Series): The expected returns of the assets.
-            Cov (pd.DataFrame): The covariance matrix of the assets.
+            cov (pd.DataFrame): The covariance matrix of the assets.
         """
-        A, B, C = self.compute_ABC(mu, Cov)
+        a, b, c = self.compute_abc(mu, cov)
 
         # Check for valid determinant
-        if (A * C - B * B) <= 0:
+        if (a * c - b * b) <= 0:
             logger.error("Error: Cannot compute frontier, check data. Determinant is non-positive.")
             return
 
         # Global Minimum Variance (GMV) return
-        gmv_return = B / A
+        gmv_return = b / a
 
         # Plot inefficient part of the frontier
         y = np.linspace(0, gmv_return, 100)
-        x = np.sqrt((A * y * y - 2 * B * y + C) / (A * C - B * B))
+        x = np.sqrt((a * y * y - 2 * b * y + c) / (a * c - b * b))
         plt.plot(x, y, color="black", lw=2.5, linestyle="--")
 
         # Plot efficient frontier (from GMV up to plot limit)
         # --- PLOTTING FIX 2: Adjusted linspace upper bound ---
-        y = np.linspace(gmv_return, 1 - max(mu)*1.1, 100)
-        x = np.sqrt((A * y * y - 2 * B * y + C) / (A * C - B * B))
+        y = np.linspace(gmv_return, 1 - max(mu) * 1.1, 100)
+        x = np.sqrt((a * y * y - 2 * b * y + c) / (a * c - b * b))
         plt.plot(x, y, color="black", lw=2.5, label="Efficient Frontier")
         plt.legend()
 
-    def plot_random_portfolios(self, mu, Cov, n_simulations):
+    def plot_random_portfolios(self, mu, cov, n_simulations):
         """
         Plots a scatter plot of random portfolios.
 
         Args:
             mu (pd.Series): The expected returns of the assets.
-            Cov (pd.DataFrame): The covariance matrix of the assets.
+            cov (pd.DataFrame): The covariance matrix of the assets.
             n_simulations (int): The number of random portfolios to generate.
         """
         n_assets = len(mu)
@@ -204,7 +213,7 @@ class FinancialModelingService:
         sigma_p_sims = []
         for i in range(n_simulations):
             w = self.random_weights(n_assets)
-            mu_p, sigma_p = self.mu_sigma_portfolio(w, mu, Cov)
+            mu_p, sigma_p = self.mu_sigma_portfolio(w, mu, cov)
             mu_p_sims.append(mu_p)
             sigma_p_sims.append(sigma_p)
         plt.scatter(sigma_p_sims, mu_p_sims, s=12, alpha=0.6)
@@ -221,7 +230,7 @@ class FinancialModelingService:
         plt.figure(figsize=(8, 6))
         plt.scatter(sigma, mu, c="black")
         # --- PLOTTING FIX 1: Adjusted xlim ---
-        plt.xlim(0, max(sigma)*1.1)
+        plt.xlim(0, max(sigma) * 1.1)
         plt.ylim(0, 0.25)
         plt.ylabel("Mean (Annual Expected Return)")
         plt.xlabel("Standard Deviation (Annual Volatility)")
@@ -231,31 +240,31 @@ class FinancialModelingService:
                 stock, (sigma.iloc[i], mu.iloc[i]), ha="center", va="bottom", weight="bold"
             )
 
-    def compute_ABC(self, mu, Cov):
+    def compute_abc(self, mu, cov):
         """
-        Computes the A, B, and C constants for the minimum variance frontier.
+        Computes the a, b, and c constants for the minimum variance frontier.
 
         Args:
             mu (pd.Series): The expected returns of the assets.
-            Cov (pd.DataFrame): The covariance matrix of the assets.
+            cov (pd.DataFrame): The covariance matrix of the assets.
 
         Returns:
-            tuple: A tuple containing the A, B, and C constants.
+            tuple: A tuple containing the a, b, and c constants.
         """
         n_assets = len(mu)
-        # Handle potential singularity if Cov is not invertible
+        # Handle potential singularity if cov is not invertible
         try:
-            Cov_inv = np.linalg.inv(Cov)
+            cov_inv = np.linalg.inv(cov)
         except np.linalg.LinAlgError:
             logger.warning("Covariance matrix is singular, using pseudo-inverse.")
             # Use pseudo-inverse as a fallback
-            Cov_inv = np.linalg.pinv(Cov)
+            cov_inv = np.linalg.pinv(cov)
 
         ones = np.ones(n_assets)
-        A = ones @ Cov_inv @ ones
-        B = ones @ Cov_inv @ mu
-        C = mu @ Cov_inv @ mu
-        return A, B, C
+        a = ones @ cov_inv @ ones
+        b = ones @ cov_inv @ mu
+        c = mu @ cov_inv @ mu
+        return a, b, c
 
     def random_weights(self, n_assets):
         """
@@ -270,13 +279,13 @@ class FinancialModelingService:
         k = np.random.randn(n_assets)
         return k / sum(k)
 
-    def generate_markowitz_bullet(self, mu, Cov, r_f, stocks):
+    def generate_markowitz_bullet(self, mu, cov, r_f, stocks):
         """
         Generates the Markowitz bullet plot.
 
         Args:
             mu (pd.Series): The expected returns of the assets.
-            Cov (pd.DataFrame): The covariance matrix of the assets.
+            cov (pd.DataFrame): The covariance matrix of the assets.
             r_f (float): The risk-free rate of return.
             stocks (list[str]): The list of stock tickers.
 
@@ -289,17 +298,17 @@ class FinancialModelingService:
         plot_limit_y = 0.25
 
         # --- 1. Find the Tangency Portfolio ---
-        w_tan = self.find_tangency_portfolio(mu, Cov, r_f)
-        mu_tan, sigma_tan = self.mu_sigma_portfolio(w_tan, mu, Cov)
+        w_tan = self.find_tangency_portfolio(mu, cov, r_f)
+        mu_tan, sigma_tan = self.mu_sigma_portfolio(w_tan, mu, cov)
 
         logger.info("Tangency Portfolio Weights:")
         for i, stock in enumerate(stocks):
             logger.info(f"{stock}: {w_tan[i]:.4f}")
 
         # --- 2. Plot everything ---
-        self.plot_points(mu, np.diag(Cov) ** 0.5, stocks)
-        self.plot_random_portfolios(mu, Cov, n_simulations)
-        self.plot_min_var_frontier(mu, Cov)
+        self.plot_points(mu, np.diag(cov) ** 0.5, stocks)
+        self.plot_random_portfolios(mu, cov, n_simulations)
+        self.plot_min_var_frontier(mu, cov)
 
         # Plot the CML and the tangency point
         self.plot_capital_market_line(mu_tan, sigma_tan, r_f, plot_limit_x)

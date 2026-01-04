@@ -74,9 +74,8 @@ class TestPortfolioEndpoints:
         # 3. Add trades to each asset
         # Asset 1: 10 shares
         await client.post(
-            "/api/v1/trades",
+            f"/api/v1/assets/{asset1_id}/trades",
             json={
-                "asset_id": asset1_id,
                 "trade_date": datetime.now(UTC).isoformat(),
                 "quantity": "10",
                 "price": "100",
@@ -84,9 +83,8 @@ class TestPortfolioEndpoints:
         )
         # Asset 2: 20 shares
         await client.post(
-            "/api/v1/trades",
+            f"/api/v1/assets/{asset2_id}/trades",
             json={
-                "asset_id": asset2_id,
                 "trade_date": datetime.now(UTC).isoformat(),
                 "quantity": "20",
                 "price": "50",
@@ -166,13 +164,12 @@ class TestAssetEndpoints:
 
         # Add a trade to the asset
         trade_data = {
-            "asset_id": asset_id,
             "trade_date": datetime.now(UTC).isoformat(),
             "quantity": "10",
             "price": "250.00",
             "trade_type": "BUY",
         }
-        await client.post("/api/v1/trades", json=trade_data)
+        await client.post(f"/api/v1/assets/{asset_id}/trades", json=trade_data)
 
         response = await client.get(f"/api/v1/assets/{asset_id}")
         assert response.status_code == 200
@@ -211,13 +208,12 @@ class TestTradeEndpoints:
         asset_id = asset_res.json()["id"]
 
         trade_data = {
-            "asset_id": asset_id,
             "trade_date": datetime.now(UTC).isoformat(),
             "quantity": "5",
             "price": "550.50",
             "trade_type": "BUY",
         }
-        response = await client.post("/api/v1/trades", json=trade_data)
+        response = await client.post(f"/api/v1/assets/{asset_id}/trades", json=trade_data)
         assert response.status_code == 201
         data = response.json()
         assert data["quantity"] == 5.0
@@ -238,7 +234,7 @@ class TestTradeEndpoints:
 
         # Create two trades
         await client.post(
-            "/api/v1/trades",
+            f"/api/v1/assets/{asset_id}/trades",
             json={
                 "asset_id": asset_id,
                 "trade_date": datetime.now(UTC).isoformat(),
@@ -247,9 +243,8 @@ class TestTradeEndpoints:
             },
         )
         await client.post(
-            "/api/v1/trades",
+            f"/api/v1/assets/{asset_id}/trades",
             json={
-                "asset_id": asset_id,
                 "trade_date": datetime.now(UTC).isoformat(),
                 "quantity": "3",
                 "price": "1350",
@@ -272,9 +267,8 @@ class TestTradeEndpoints:
         )
         asset_id = asset_res.json()["id"]
         trade_res = await client.post(
-            "/api/v1/trades",
+            f"/api/v1/assets/{asset_id}/trades",
             json={
-                "asset_id": asset_id,
                 "trade_date": datetime.now(UTC).isoformat(),
                 "quantity": "1",
                 "price": "180",

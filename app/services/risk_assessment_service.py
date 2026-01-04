@@ -1,3 +1,10 @@
+"""
+/home/marcus/code/marcus/robo-advisor/app/services/risk_assessment_service.py
+Service for risk assessment operations.
+This file handles the creation and management of user risk profiles.
+RELEVANT FILES: app/models.py, app/schemas/risk_profile.py, app/routes.py
+"""
+
 from app.models import RiskProfile
 from app.schemas.risk_profile import RiskProfileCreate
 

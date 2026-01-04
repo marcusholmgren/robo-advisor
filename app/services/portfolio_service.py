@@ -1,4 +1,9 @@
-"""Service for portfolio-related operations."""
+"""
+/home/marcus/code/marcus/robo-advisor/app/services/portfolio_service.py
+Service for portfolio-related operations.
+This file handles complex portfolio logic, including calculating holdings and weights.
+RELEVANT FILES: app/models.py, app/routes.py, app/schemas/portfolio.py
+"""
 
 import yfinance as yf
 from tortoise.exceptions import DoesNotExist
@@ -39,7 +44,7 @@ class PortfolioService:
             asset.total_cost = asset.current_quantity * asset.average_cost_basis
             asset.unrealized_pnl = asset.holdings - asset.total_cost
             if asset.total_cost > 0:
-                asset.unrealized_pnl_pct = (asset.unrealized_pnl / asset.total_cost) * 100
+                asset.unrealized_pnl_pct = asset.unrealized_pnl / asset.total_cost
             else:
                 asset.unrealized_pnl_pct = 0
 
@@ -52,9 +57,7 @@ class PortfolioService:
         portfolio.total_cost_basis = total_cost_basis
         portfolio.total_unrealized_pnl = total_holdings_value - total_cost_basis
         if total_cost_basis > 0:
-            portfolio.total_unrealized_pnl_pct = (
-                portfolio.total_unrealized_pnl / total_cost_basis
-            ) * 100
+            portfolio.total_unrealized_pnl_pct = portfolio.total_unrealized_pnl / total_cost_basis
         else:
             portfolio.total_unrealized_pnl_pct = 0
 

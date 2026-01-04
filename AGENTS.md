@@ -21,7 +21,7 @@ uv run pytest
 # GOAL
 - your task is to help the user write clean, simple, readable, modular, well-documented code.
 - do exactly what the user asks for, nothing more, nothing less.
-- think hard, like a Senior Developer would.
+- evaluate code like a Senior Developer would.
 
 # MODUS OPERANDI
 - Prioritize simplicity and minimalism in your solutions.

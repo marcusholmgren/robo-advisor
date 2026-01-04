@@ -1,4 +1,9 @@
-"""Database configuration for TortoiseORM."""
+"""
+/home/marcus/code/marcus/robo-advisor/app/database.py
+Database configuration for TortoiseORM.
+This file sets up the connection to the SQLite database and defines the app models.
+RELEVANT FILES: app/models.py, app/main.py
+"""
 
 # TortoiseORM configuration
 TORTOISE_ORM = {

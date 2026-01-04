@@ -47,6 +47,7 @@ class AssetCreate(AssetBase):
 
     pass
 
+
 class AssetUpdate(BaseModel):
     """Schema for updating an asset (e.g., renaming)."""
 

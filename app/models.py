@@ -1,4 +1,9 @@
-"""Database models using TortoiseORM."""
+"""
+/home/marcus/code/marcus/robo-advisor/app/models.py
+Database models using TortoiseORM.
+This file defines the database schema for portfolios, assets, trades, and risk profiles.
+RELEVANT FILES: app/database.py, app/routes.py, app/schemas/portfolio.py
+"""
 
 from tortoise import fields
 from tortoise.models import Model

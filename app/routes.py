@@ -1,4 +1,9 @@
-"""API routes for the robo-advisor application."""
+"""
+/home/marcus/code/marcus/robo-advisor/app/routes.py
+API routes for the robo-advisor application.
+This file defines the FastAPI endpoints for managing portfolios, assets, and trades.
+RELEVANT FILES: app/models.py, app/schemas/portfolio.py, app/services/financial_modeling_service.py
+"""
 
 from typing import List
 from fastapi import APIRouter, HTTPException, status
@@ -18,7 +23,6 @@ from app.services.portfolio_service import PortfolioService
 from app import schemas
 from app.schemas.portfolio import (
     Trade as TradeSchema,
-    TradeCreate,
     TradeBase,
     PortfolioDetails,
 )
@@ -145,18 +149,18 @@ async def portfolio_analysis(portfolio_id: int, request: PortfolioAnalysisReques
     # Perform calculations
     daily_returns = financial_modeling_service.calculate_returns(historical_data)
     mu = financial_modeling_service.calculate_expected_returns(daily_returns)
-    Cov = financial_modeling_service.calculate_covariance_matrix(daily_returns)
+    cov = financial_modeling_service.calculate_covariance_matrix(daily_returns)
 
     # Calculate Sharpe Ratio for the tangency portfolio
-    w_tan = financial_modeling_service.find_tangency_portfolio(mu, Cov, request.risk_free_rate)
-    mu_tan, sigma_tan = financial_modeling_service.mu_sigma_portfolio(w_tan, mu, Cov)
+    w_tan = financial_modeling_service.find_tangency_portfolio(mu, cov, request.risk_free_rate)
+    mu_tan, sigma_tan = financial_modeling_service.mu_sigma_portfolio(w_tan, mu, cov)
     sharpe_ratio = financial_modeling_service.calculate_sharpe_ratio(
         mu_tan, sigma_tan, request.risk_free_rate
     )
 
     # Generate Markowitz Bullet Plot
     plot_base64 = financial_modeling_service.generate_markowitz_bullet(
-        mu, Cov, request.risk_free_rate, tickers
+        mu, cov, request.risk_free_rate, tickers
     )
 
     return PortfolioAnalysisResponse(
@@ -203,7 +207,11 @@ async def get_asset(asset_id: int):
         )
 
 
-@router.post("/portfolios/{portfolio_id}/assets", response_model=schemas.Asset, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/portfolios/{portfolio_id}/assets",
+    response_model=schemas.Asset,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_asset(portfolio_id: int, asset: schemas.AssetCreate):
     """
     Create a new asset parent. This does not include any trades.
@@ -218,9 +226,7 @@ async def create_asset(portfolio_id: int, asset: schemas.AssetCreate):
         )
 
     # Check if an asset with the same symbol already exists in the portfolio
-    existing_asset = await Asset.filter(
-        portfolio_id=portfolio_id, symbol=asset.symbol
-    ).first()
+    existing_asset = await Asset.filter(portfolio_id=portfolio_id, symbol=asset.symbol).first()
     if existing_asset:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -263,19 +269,21 @@ async def delete_asset(asset_id: int):
 # --- Trade Endpoints ---
 
 
-@router.post("/trades", response_model=TradeSchema, status_code=status.HTTP_201_CREATED)
-async def create_trade(trade: TradeCreate):
+@router.post(
+    "/assets/{asset_id}/trades", response_model=TradeSchema, status_code=status.HTTP_201_CREATED
+)
+async def create_trade(asset_id: int, trade: TradeBase):
     """Create a new trade for an asset."""
     try:
         # Ensure the asset exists before creating a trade for it
-        await Asset.get(id=trade.asset_id)
+        await Asset.get(id=asset_id)
     except DoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Asset with id {trade.asset_id} not found. Cannot create trade.",
+            detail=f"Asset with id {asset_id} not found. Cannot create trade.",
         )
 
-    trade_obj = await Trade.create(**trade.model_dump())
+    trade_obj = await Trade.create(**trade.model_dump(), asset_id=asset_id)
     return trade_obj
 
 
