@@ -1,14 +1,11 @@
 import pytest
 from datetime import date, timedelta
-from fastapi.testclient import TestClient
+from httpx import AsyncClient, ASGITransport
 from app.main import app
 from app.services.financial_modeling_service import FinancialModelingService
 import pandas as pd
 import numpy as np
 from unittest.mock import patch
-
-client = TestClient(app)
-
 
 @pytest.fixture
 def financial_modeling_service():
@@ -105,10 +102,10 @@ async def test_calculate_covariance_matrix(
 
 @pytest.mark.asyncio
 async def test_financial_modeling_endpoint_success(
-    sample_tickers, sample_dates, mock_get_historical_data
+    client, sample_tickers, sample_dates, mock_get_historical_data
 ):
     start_date, end_date = sample_dates
-    response = client.post(
+    response = await client.post(
         "/api/v1/financial-modeling/",
         json={"tickers": sample_tickers, "start_date": str(start_date), "end_date": str(end_date)},
     )
@@ -121,11 +118,11 @@ async def test_financial_modeling_endpoint_success(
 
 
 @pytest.mark.asyncio
-async def test_financial_modeling_endpoint_no_data(sample_dates, mock_get_historical_data):
+async def test_financial_modeling_endpoint_no_data(client, sample_dates, mock_get_historical_data):
     # Configure mock to return empty DataFrame for this specific test
     mock_get_historical_data.return_value = pd.DataFrame()
     start_date, end_date = sample_dates
-    response = client.post(
+    response = await client.post(
         "/api/v1/financial-modeling/",
         json={
             "tickers": ["NONEXISTENTTICKER123"],
@@ -138,9 +135,9 @@ async def test_financial_modeling_endpoint_no_data(sample_dates, mock_get_histor
 
 
 @pytest.mark.asyncio
-async def test_portfolio_analysis_endpoint_success(mock_get_historical_data):
+async def test_portfolio_analysis_endpoint_success(client, mock_get_historical_data):
     # 1. Create a portfolio
-    portfolio_response = client.post(
+    portfolio_response = await client.post(
         "/api/v1/portfolios",
         json={
             "name": "Test Portfolio for Analysis",
@@ -164,11 +161,11 @@ async def test_portfolio_analysis_endpoint_success(mock_get_historical_data):
         },
     ]
     for asset_data in assets_to_create:
-        asset_response = client.post(f"/api/v1/portfolios/{portfolio_id}/assets", json=asset_data)
+        asset_response = await client.post(f"/api/v1/portfolios/{portfolio_id}/assets", json=asset_data)
         assert asset_response.status_code == 201, asset_response.json()
 
     # 3. Call the analysis endpoint
-    analysis_response = client.post(
+    analysis_response = await client.post(
         f"/api/v1/portfolios/{portfolio_id}/analysis", json={"risk_free_rate": 0.01}
     )
 
@@ -183,5 +180,5 @@ async def test_portfolio_analysis_endpoint_success(mock_get_historical_data):
     assert isinstance(data["markowitz_bullet_plot"], str)
 
     # Clean up the created portfolio and assets
-    delete_portfolio_response = client.delete(f"/api/v1/portfolios/{portfolio_id}")
+    delete_portfolio_response = await client.delete(f"/api/v1/portfolios/{portfolio_id}")
     assert delete_portfolio_response.status_code == 204

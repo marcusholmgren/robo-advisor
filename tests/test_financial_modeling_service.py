@@ -77,7 +77,7 @@ def test_mu_sigma_portfolio(financial_modeling_service, mock_daily_returns):
 def test_compute_abc(financial_modeling_service, mock_daily_returns):
     mu = financial_modeling_service.calculate_expected_returns(mock_daily_returns)
     cov = financial_modeling_service.calculate_covariance_matrix(mock_daily_returns)
-    A, B, C = financial_modeling_service.compute_ABC(mu, cov)
+    A, B, C = financial_modeling_service.compute_abc(mu, cov)
     assert isinstance(A, float)
     assert isinstance(B, float)
     assert isinstance(C, float)
