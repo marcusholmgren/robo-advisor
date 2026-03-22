@@ -1,11 +1,12 @@
-import pytest
 from datetime import date, timedelta
-from httpx import AsyncClient, ASGITransport
-from app.main import app
-from app.services.financial_modeling_service import FinancialModelingService
-import pandas as pd
-import numpy as np
 from unittest.mock import patch
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from app.services.financial_modeling_service import FinancialModelingService
+
 
 @pytest.fixture
 def financial_modeling_service():
@@ -32,8 +33,8 @@ def mock_get_historical_data():
         # Create a sample DataFrame for mocking what get_historical_data should return
         dates = pd.bdate_range(end=date.today(), periods=100)
         data = {
-            "AAPL": np.random.rand(100) * 100 + 100,
-            "MSFT": np.random.rand(100) * 50 + 200,
+            "AAPL": np.random.rand(len(dates)) * 100 + 100,
+            "MSFT": np.random.rand(len(dates)) * 50 + 200,
         }
         mock_df = pd.DataFrame(data, index=dates)
         mock_method.return_value = mock_df

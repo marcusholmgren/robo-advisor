@@ -295,7 +295,7 @@ class FinancialModelingService:
         # --- MAIN SCRIPT ---
         n_simulations = 5000
         plot_limit_x = 0.75
-        plot_limit_y = 0.25
+        _plot_limit_y = 0.25
 
         # --- 1. Find the Tangency Portfolio ---
         w_tan = self.find_tangency_portfolio(mu, cov, r_f)
