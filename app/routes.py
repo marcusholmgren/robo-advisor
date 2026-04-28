@@ -63,11 +63,29 @@ async def get_financial_metrics(request: FinancialModelingRequest):
 
 
 # Portfolio endpoints
-@router.get("/portfolios", response_model=List[schemas.Portfolio])
-async def list_portfolios():
-    """List all portfolios."""
-    portfolios = await Portfolio.all()
-    return portfolios
+@router.get("/portfolios", response_model=schemas.portfolio.PaginatedPortfolios)
+async def list_portfolios(skip: int = 0, limit: int = 10):
+    """List all portfolios with pagination and HATEOAS links."""
+    total = await Portfolio.all().count()
+    portfolios_db = await Portfolio.all().offset(skip).limit(limit)
+
+    items = []
+    for p in portfolios_db:
+        p_dict = schemas.Portfolio.model_validate(p)
+        p_dict.links = {
+            "self": f"/api/v1/portfolios/{p.id}",
+            "assets": f"/api/v1/portfolios/{p.id}/assets",
+            "update": f"/api/v1/portfolios/{p.id}",
+            "delete": f"/api/v1/portfolios/{p.id}",
+        }
+        items.append(p_dict)
+
+    return schemas.portfolio.PaginatedPortfolios(
+        items=items,
+        total=total,
+        skip=skip,
+        limit=limit
+    )
 
 
 @router.get("/portfolios/{portfolio_id}", response_model=PortfolioDetails)
@@ -79,6 +97,13 @@ async def get_portfolio(portfolio_id: int):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Portfolio with id {portfolio_id} not found",
         )
+
+    portfolio.links = {
+        "self": f"/api/v1/portfolios/{portfolio_id}",
+        "assets": f"/api/v1/portfolios/{portfolio_id}/assets",
+        "update": f"/api/v1/portfolios/{portfolio_id}",
+        "delete": f"/api/v1/portfolios/{portfolio_id}",
+    }
     return portfolio
 
 
@@ -86,7 +111,14 @@ async def get_portfolio(portfolio_id: int):
 async def create_portfolio(portfolio: schemas.PortfolioCreate):
     """Create a new portfolio."""
     portfolio_obj = await Portfolio.create(**portfolio.model_dump())
-    return portfolio_obj
+    portfolio_dict = schemas.Portfolio.model_validate(portfolio_obj)
+    portfolio_dict.links = {
+        "self": f"/api/v1/portfolios/{portfolio_obj.id}",
+        "assets": f"/api/v1/portfolios/{portfolio_obj.id}/assets",
+        "update": f"/api/v1/portfolios/{portfolio_obj.id}",
+        "delete": f"/api/v1/portfolios/{portfolio_obj.id}",
+    }
+    return portfolio_dict
 
 
 @router.put("/portfolios/{portfolio_id}", response_model=schemas.Portfolio)
@@ -96,7 +128,15 @@ async def update_portfolio(portfolio_id: int, portfolio: schemas.PortfolioUpdate
         portfolio_obj = await Portfolio.get(id=portfolio_id)
         update_data = portfolio.model_dump(exclude_unset=True)
         await portfolio_obj.update_from_dict(update_data).save()
-        return portfolio_obj
+
+        portfolio_dict = schemas.Portfolio.model_validate(portfolio_obj)
+        portfolio_dict.links = {
+            "self": f"/api/v1/portfolios/{portfolio_obj.id}",
+            "assets": f"/api/v1/portfolios/{portfolio_obj.id}/assets",
+            "update": f"/api/v1/portfolios/{portfolio_obj.id}",
+            "delete": f"/api/v1/portfolios/{portfolio_obj.id}",
+        }
+        return portfolio_dict
     except DoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -171,20 +211,46 @@ async def portfolio_analysis(portfolio_id: int, request: PortfolioAnalysisReques
 
 
 # Asset endpoints
-@router.get("/portfolios/{portfolio_id}/assets", response_model=List[schemas.Asset])
-async def list_assets(portfolio_id: int):
+@router.get("/portfolios/{portfolio_id}/assets", response_model=schemas.portfolio.PaginatedAssets)
+async def list_assets(portfolio_id: int, skip: int = 0, limit: int = 10):
     """List all assets for a specific portfolio."""
-    assets_from_db = await Asset.filter(portfolio_id=portfolio_id)
+    total = await Asset.filter(portfolio_id=portfolio_id).count()
+    assets_from_db = await Asset.filter(portfolio_id=portfolio_id).prefetch_related("trades").offset(skip).limit(limit)
 
     # Create a list of Pydantic models, calculating dynamic fields for each asset
     asset_schemas = []
     for asset in assets_from_db:
         asset_schema = schemas.Asset.model_validate(asset)
-        asset_schema.current_quantity = await asset.get_current_quantity()
-        asset_schema.average_cost_basis = await asset.get_average_cost_basis()
+
+        # Calculate aggregates in memory to avoid N+1 queries
+        total_quantity = 0.0
+        total_cost_for_buys = 0.0
+        total_shares_bought = 0.0
+
+        for trade in asset.trades:
+            total_quantity += float(trade.quantity)
+            if trade.quantity > 0:
+                total_shares_bought += float(trade.quantity)
+                total_cost_for_buys += float(trade.quantity) * float(trade.price)
+
+        asset_schema.current_quantity = total_quantity
+        asset_schema.average_cost_basis = total_cost_for_buys / total_shares_bought if total_shares_bought > 0 else 0.0
+
+        asset_schema.links = {
+            "self": f"/api/v1/assets/{asset.id}",
+            "portfolio": f"/api/v1/portfolios/{portfolio_id}",
+            "trades": f"/api/v1/assets/{asset.id}/trades",
+            "update": f"/api/v1/assets/{asset.id}",
+            "delete": f"/api/v1/assets/{asset.id}",
+        }
         asset_schemas.append(asset_schema)
 
-    return asset_schemas
+    return schemas.portfolio.PaginatedAssets(
+        items=asset_schemas,
+        total=total,
+        skip=skip,
+        limit=limit
+    )
 
 
 @router.get("/assets/{asset_id}", response_model=schemas.Asset)
@@ -200,6 +266,14 @@ async def get_asset(asset_id: int):
         # Calculate and set the dynamic fields
         asset_schema.current_quantity = await asset.get_current_quantity()
         asset_schema.average_cost_basis = await asset.get_average_cost_basis()
+
+        asset_schema.links = {
+            "self": f"/api/v1/assets/{asset_id}",
+            "portfolio": f"/api/v1/portfolios/{asset.portfolio_id}",
+            "trades": f"/api/v1/assets/{asset_id}/trades",
+            "update": f"/api/v1/assets/{asset_id}",
+            "delete": f"/api/v1/assets/{asset_id}",
+        }
         return asset_schema
     except DoesNotExist:
         raise HTTPException(
@@ -234,7 +308,15 @@ async def create_asset(portfolio_id: int, asset: schemas.AssetCreate):
         )
 
     asset_obj = await Asset.create(portfolio_id=portfolio_id, **asset.model_dump())
-    return asset_obj
+    asset_schema = schemas.Asset.model_validate(asset_obj)
+    asset_schema.links = {
+        "self": f"/api/v1/assets/{asset_obj.id}",
+        "portfolio": f"/api/v1/portfolios/{portfolio_id}",
+        "trades": f"/api/v1/assets/{asset_obj.id}/trades",
+        "update": f"/api/v1/assets/{asset_obj.id}",
+        "delete": f"/api/v1/assets/{asset_obj.id}",
+    }
+    return asset_schema
 
 
 @router.put("/assets/{asset_id}", response_model=schemas.Asset)
@@ -244,7 +326,16 @@ async def update_asset(asset_id: int, asset: schemas.AssetUpdate):
         asset_obj = await Asset.get(id=asset_id)
         update_data = asset.model_dump(exclude_unset=True)
         await asset_obj.update_from_dict(update_data).save()
-        return asset_obj
+
+        asset_schema = schemas.Asset.model_validate(asset_obj)
+        asset_schema.links = {
+            "self": f"/api/v1/assets/{asset_id}",
+            "portfolio": f"/api/v1/portfolios/{asset_obj.portfolio_id}",
+            "trades": f"/api/v1/assets/{asset_id}/trades",
+            "update": f"/api/v1/assets/{asset_id}",
+            "delete": f"/api/v1/assets/{asset_id}",
+        }
+        return asset_schema
     except DoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Asset with id {asset_id} not found"
@@ -284,18 +375,44 @@ async def create_trade(asset_id: int, trade: TradeBase):
         )
 
     trade_obj = await Trade.create(**trade.model_dump(), asset_id=asset_id)
-    return trade_obj
+    trade_schema = TradeSchema.model_validate(trade_obj)
+    trade_schema.links = {
+        "self": f"/api/v1/trades/{trade_obj.id}",
+        "asset": f"/api/v1/assets/{asset_id}",
+        "update": f"/api/v1/trades/{trade_obj.id}",
+        "delete": f"/api/v1/trades/{trade_obj.id}",
+    }
+    return trade_schema
 
 
-@router.get("/assets/{asset_id}/trades", response_model=List[TradeSchema])
-async def list_trades_for_asset(asset_id: int):
+@router.get("/assets/{asset_id}/trades", response_model=schemas.portfolio.PaginatedTrades)
+async def list_trades_for_asset(asset_id: int, skip: int = 0, limit: int = 10):
     """List all trades for a specific asset."""
     try:
         # Ensure the asset exists
         asset = await Asset.get(id=asset_id)
+
+        total = await Trade.filter(asset_id=asset.id).count()
         # Fetch all trades related to this asset
-        trades = await Trade.filter(asset_id=asset.id).order_by("-trade_date")
-        return trades
+        trades = await Trade.filter(asset_id=asset.id).order_by("-trade_date").offset(skip).limit(limit)
+
+        trade_schemas = []
+        for t in trades:
+            trade_schema = TradeSchema.model_validate(t)
+            trade_schema.links = {
+                "self": f"/api/v1/trades/{t.id}",
+                "asset": f"/api/v1/assets/{asset_id}",
+                "update": f"/api/v1/trades/{t.id}",
+                "delete": f"/api/v1/trades/{t.id}",
+            }
+            trade_schemas.append(trade_schema)
+
+        return schemas.portfolio.PaginatedTrades(
+            items=trade_schemas,
+            total=total,
+            skip=skip,
+            limit=limit
+        )
     except DoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Asset with id {asset_id} not found."
@@ -307,7 +424,14 @@ async def get_trade(trade_id: int):
     """Get a specific trade by its ID."""
     try:
         trade = await Trade.get(id=trade_id)
-        return trade
+        trade_schema = TradeSchema.model_validate(trade)
+        trade_schema.links = {
+            "self": f"/api/v1/trades/{trade_id}",
+            "asset": f"/api/v1/assets/{trade.asset_id}",
+            "update": f"/api/v1/trades/{trade_id}",
+            "delete": f"/api/v1/trades/{trade_id}",
+        }
+        return trade_schema
     except DoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Trade with id {trade_id} not found."
@@ -321,7 +445,15 @@ async def update_trade(trade_id: int, trade: TradeBase):
         trade_obj = await Trade.get(id=trade_id)
         update_data = trade.model_dump(exclude_unset=True)
         await trade_obj.update_from_dict(update_data).save()
-        return trade_obj
+
+        trade_schema = TradeSchema.model_validate(trade_obj)
+        trade_schema.links = {
+            "self": f"/api/v1/trades/{trade_id}",
+            "asset": f"/api/v1/assets/{trade_obj.asset_id}",
+            "update": f"/api/v1/trades/{trade_id}",
+            "delete": f"/api/v1/trades/{trade_id}",
+        }
+        return trade_schema
     except DoesNotExist:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Trade with id {trade_id} not found."

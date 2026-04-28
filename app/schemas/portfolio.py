@@ -1,7 +1,7 @@
 """Pydantic schemas for request/response validation."""
 
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict
 from pydantic import BaseModel, ConfigDict
 
 
@@ -31,8 +31,18 @@ class Portfolio(PortfolioBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    links: Optional[Dict[str, str]] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedPortfolios(BaseModel):
+    """Schema for paginated portfolios."""
+
+    items: List[Portfolio]
+    total: int
+    skip: int
+    limit: int
 
 
 class AssetBase(BaseModel):
@@ -68,8 +78,18 @@ class Asset(AssetBase):
     # Optional fields that can be populated by API endpoints
     current_quantity: Optional[float] = None
     average_cost_basis: Optional[float] = None
+    links: Optional[Dict[str, str]] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedAssets(BaseModel):
+    """Schema for paginated assets."""
+
+    items: List[Asset]
+    total: int
+    skip: int
+    limit: int
 
 
 # --- New Schemas for Trades ---
@@ -95,8 +115,18 @@ class Trade(TradeBase):
 
     id: int
     created_at: datetime
+    links: Optional[Dict[str, str]] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedTrades(BaseModel):
+    """Schema for paginated trades."""
+
+    items: List[Trade]
+    total: int
+    skip: int
+    limit: int
 
 
 class AssetHolding(Asset):
@@ -120,3 +150,4 @@ class PortfolioDetails(Portfolio):
     total_cost_basis: Optional[float] = None
     total_unrealized_pnl: Optional[float] = None
     total_unrealized_pnl_pct: Optional[float] = None
+    links: Optional[Dict[str, str]] = None

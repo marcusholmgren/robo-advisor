@@ -40,17 +40,25 @@ class TestPortfolioEndpoints:
         await client.post("/api/v1/portfolios", json={"name": "Portfolio 2"})
         response = await client.get("/api/v1/portfolios")
         assert response.status_code == 200
-        assert len(response.json()) >= 2
 
-    @patch("app.services.portfolio_service.yf.Ticker")
-    async def test_get_portfolio_with_holdings(self, mock_ticker, client):
+        data = response.json()
+        assert "items" in data
+        assert len(data["items"]) >= 2
+
+    @patch("app.services.portfolio_service.yf.download")
+    async def test_get_portfolio_with_holdings(self, mock_download, client):
         """Test getting a portfolio includes asset holdings and weights."""
 
-        # Mock the yfinance Ticker history method
-        mock_ticker.return_value.history.side_effect = [
-            pd.DataFrame({"Close": [150.0]}),  # Mock price for ASSET1
-            pd.DataFrame({"Close": [75.0]}),  # Mock price for ASSET2
-        ]
+        # Mock the yfinance download method for multiple tickers
+        mock_df = pd.DataFrame(
+            {
+                "ASSET1": [150.0],
+                "ASSET2": [75.0],
+            },
+            index=pd.to_datetime(["2023-01-01"])
+        )
+        mock_df.columns = pd.MultiIndex.from_product([["Close"], ["ASSET1", "ASSET2"]])
+        mock_download.return_value = mock_df
 
         # 1. Create a portfolio
         portfolio_res = await client.post(
@@ -218,6 +226,8 @@ class TestTradeEndpoints:
         data = response.json()
         assert data["quantity"] == 5.0
         assert data["price"] == 550.5
+        assert "links" in data
+        assert data["links"]["self"] == f"/api/v1/trades/{data['id']}"
         assert "id" in data
 
     async def test_list_trades_for_asset(self, client):
@@ -253,7 +263,9 @@ class TestTradeEndpoints:
 
         response = await client.get(f"/api/v1/assets/{asset_id}/trades")
         assert response.status_code == 200
-        assert len(response.json()) == 2
+        data = response.json()
+        assert "items" in data
+        assert len(data["items"]) == 2
 
     async def test_delete_trade(self, client):
         """Test deleting a trade."""
